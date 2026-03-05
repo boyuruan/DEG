@@ -120,62 +120,79 @@ inline void DEG_PARA(std::string dataset, stkq::Parameters &parameters)
 
 inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
 {
-    // Multi-vector: num_vectors hyperparameter (default 2). Path logic for N>2 is TODO.
     unsigned num_vectors = get_num_vectors(parameters);
-    if (num_vectors > 2)
+    std::string dataset_root = parameters.get<std::string>("dataset_root");
+
+    std::string dataset_dir;
+    if (dataset == "openimage")
+        dataset_dir = "OpenImage";
+    else if (dataset == "sg-ins")
+        dataset_dir = "SG-ins";
+    else if (dataset == "howto100m")
+        dataset_dir = "howto100m";
+    else if (dataset == "cc3m")
+        dataset_dir = "CC3M";
+    else if (dataset == "Twitter10M")
+        dataset_dir = "Twitter10M";
+    else
     {
-        std::cout << "Multi-vector (N>2) path logic not implemented; num_vectors=" << num_vectors << std::endl;
+        std::cout << "dataset input error!\n";
         exit(-1);
     }
-    // dataset root path
-    std::string dataset_root = parameters.get<std::string>("dataset_root");
-    std::string base_emb_path(dataset_root);
-    std::string base_loc_path(dataset_root);
-    std::string query_emb_path(dataset_root);
-    std::string query_loc_path(dataset_root);
-    std::string query_alpha_path(dataset_root);
-    std::string partition_path(dataset_root);
-    std::string ground_path(dataset_root);
+
     float alpha = parameters.get<float>("alpha");
     int range = 0;
     std::cout << alpha << std::endl;
-    // 设置一个小的容忍范围
     const float epsilon = 1e-6;
     if (std::fabs(alpha - 0) < epsilon)
-    {
         range = 0;
-    }
     else if (std::fabs(alpha - 1) < epsilon)
-    {
         range = 6;
-    }
     else if (std::fabs(alpha - 0.1f) < epsilon)
-    {
         range = 1;
-    }
     else if (std::fabs(alpha - 0.3f) < epsilon)
-    {
         range = 2;
-    }
     else if (std::fabs(alpha - 0.5f) < epsilon)
-    {
         range = 3;
-    }
     else if (std::fabs(alpha - 0.7f) < epsilon)
-    {
         range = 4;
-    }
     else if (std::fabs(alpha - 0.9f) < epsilon)
-    {
         range = 5;
-    }
     else
     {
         std::cout << "alpha input error!\n";
         exit(-1);
     }
-
     std::cout << "Range: " << range << std::endl;
+
+    std::string dir_prefix = dataset_root + dataset_dir + "/";
+    std::string ground_path = dir_prefix + "range_" + std::to_string(range) + "_top10_results.ivecs";
+    parameters.set<std::string>("ground_path", ground_path);
+
+    if (num_vectors > 2)
+    {
+        for (unsigned i = 0; i < num_vectors; ++i)
+        {
+            parameters.set<std::string>("base_vec_path_" + std::to_string(i),
+                                        dir_prefix + "base_vec_" + std::to_string(i) + ".fvecs");
+            parameters.set<std::string>("query_vec_path_" + std::to_string(i),
+                                        dir_prefix + "query_vec_" + std::to_string(i) + ".fvecs");
+        }
+        parameters.set<std::string>("query_weights_path",
+                                    dir_prefix + "query_weights.fvecs");
+        parameters.set<std::string>("base_emb_path", parameters.get<std::string>("base_vec_path_0"));
+        parameters.set<std::string>("base_loc_path", parameters.get<std::string>("base_vec_path_1"));
+        parameters.set<std::string>("query_emb_path", parameters.get<std::string>("query_vec_path_0"));
+        parameters.set<std::string>("query_loc_path", parameters.get<std::string>("query_vec_path_1"));
+        parameters.set<std::string>("query_alpha_path", parameters.get<std::string>("query_weights_path"));
+        return;
+    }
+
+    std::string base_emb_path(dataset_root);
+    std::string base_loc_path(dataset_root);
+    std::string query_emb_path(dataset_root);
+    std::string query_loc_path(dataset_root);
+    std::string query_alpha_path(dataset_root);
 
     if (dataset == "openimage")
     {
@@ -184,7 +201,6 @@ inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
         query_emb_path.append(R"(OpenImage/query_img_emb.fvecs)");
         query_loc_path.append(R"(OpenImage/query_text_emb.fvecs)");
         query_alpha_path.append(R"(OpenImage/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(OpenImage/range_)" + std::to_string(range) + "_top10_results.ivecs");
     }
     else if (dataset == "sg-ins")
     {
@@ -193,7 +209,6 @@ inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
         query_emb_path.append(R"(SG-ins/query_emb.fvecs)");
         query_loc_path.append(R"(SG-ins/new_query_loc.fvecs)");
         query_alpha_path.append(R"(SG-ins/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(SG-ins/range_)" + std::to_string(range) + "_top10_results.ivecs");
     }
     else if (dataset == "howto100m")
     {
@@ -202,7 +217,6 @@ inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
         query_emb_path.append(R"(howto100m/query_img_emb.fvecs)");
         query_loc_path.append(R"(howto100m/query_text_emb.fvecs)");
         query_alpha_path.append(R"(howto100m/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(howto100m/range_)" + std::to_string(range) + "_top10_results.ivecs");
     }
     else if (dataset == "cc3m")
     {
@@ -211,7 +225,6 @@ inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
         query_emb_path.append(R"(CC3M/query_img_emb.fvecs)");
         query_loc_path.append(R"(CC3M/query_text_emb.fvecs)");
         query_alpha_path.append(R"(CC3M/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(CC3M/range_)" + std::to_string(range) + "_top10_results.ivecs");
     }
     else if (dataset == "Twitter10M")
     {
@@ -220,19 +233,19 @@ inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
         query_emb_path.append(R"(Twitter10M/query_emb.fvecs)");
         query_loc_path.append(R"(Twitter10M/query_loc.fvecs)");
         query_alpha_path.append(R"(Twitter10M/range_)" + std::to_string(range) + "_query_alpha.fvecs");
-        ground_path.append(R"(Twitter10M/range_)" + std::to_string(range) + "_top10_results.ivecs");
     }
-    else
-    {
-        std::cout << "dataset input error!\n";
-        exit(-1);
-    }
+
     parameters.set<std::string>("base_emb_path", base_emb_path);
     parameters.set<std::string>("base_loc_path", base_loc_path);
     parameters.set<std::string>("query_emb_path", query_emb_path);
     parameters.set<std::string>("query_loc_path", query_loc_path);
     parameters.set<std::string>("query_alpha_path", query_alpha_path);
-    parameters.set<std::string>("ground_path", ground_path);
+
+    parameters.set<std::string>("base_vec_path_0", base_emb_path);
+    parameters.set<std::string>("base_vec_path_1", base_loc_path);
+    parameters.set<std::string>("query_vec_path_0", query_emb_path);
+    parameters.set<std::string>("query_vec_path_1", query_loc_path);
+    parameters.set<std::string>("query_weights_path", query_alpha_path);
 }
 
 inline void set_para(std::string alg, std::string dataset, stkq::Parameters &parameters)

@@ -1081,6 +1081,7 @@ namespace stkq
             delete s_dist_;
             for (auto *d : vec_dists_)
                 delete d;
+            delete rtree_index_;
         }
 
         struct SimpleNeighbor
@@ -1456,14 +1457,17 @@ namespace stkq
             return e_dist_;
         }
 
-        // void Init_R_Tree(float max_s_dist)
-        // {
-        //     rtree_index = new RTreeIndex(max_s_dist);
-        // }
-
-        RTreeIndex &get_R_Tree()
+        RTreeIndexBase &get_R_Tree()
         {
-            return rtree_index;
+            if (!rtree_index_)
+                rtree_index_ = new RTreeIndex();
+            return *rtree_index_;
+        }
+
+        void initRTree(int dims)
+        {
+            delete rtree_index_;
+            rtree_index_ = makeRTreeIndex(dims);
         }
 
         E_Distance *get_S_Dist() const
@@ -1612,7 +1616,7 @@ namespace stkq
         TYPE prune_type;
         TYPE conn_type;
 
-        RTreeIndex rtree_index;
+        RTreeIndexBase *rtree_index_ = nullptr;
 
         unsigned dist_count = 0;
         unsigned hop_count = 0;

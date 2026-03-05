@@ -3,6 +3,7 @@
 #define STKQ_BUILDER_H
 
 #include "index.h"
+#include <vector>
 
 namespace stkq
 {
@@ -12,7 +13,7 @@ namespace stkq
         explicit IndexBuilder(const unsigned num_threads, const float max_emb_dist, const float max_spatial_dist, bool dual_index = false)
             : final_index_(nullptr), final_index_1(nullptr), final_index_2(nullptr)
         {
-            if (dual_index == false)
+            if (!dual_index)
             {
                 final_index_ = new Index(max_emb_dist, max_spatial_dist);
                 omp_set_num_threads(num_threads);
@@ -26,11 +27,39 @@ namespace stkq
             }
         }
 
+        explicit IndexBuilder(const unsigned num_threads, unsigned num_vectors,
+                              std::vector<float> const &max_distances, bool dual_index = false)
+            : final_index_(nullptr), final_index_1(nullptr), final_index_2(nullptr)
+        {
+            final_index_ = new Index(num_vectors, max_distances);
+            omp_set_num_threads(num_threads);
+            if (dual_index && num_vectors > 2)
+            {
+                for (unsigned i = 0; i < num_vectors; ++i)
+                    dual_indices_.push_back(new Index(num_vectors, max_distances));
+                final_index_1 = dual_indices_[0];
+                final_index_2 = dual_indices_.size() > 1 ? dual_indices_[1] : nullptr;
+            }
+            else if (dual_index)
+            {
+                final_index_1 = new Index(num_vectors, max_distances);
+                final_index_2 = new Index(num_vectors, max_distances);
+            }
+        }
+
         virtual ~IndexBuilder()
         {
             delete final_index_;
-            delete final_index_1;
-            delete final_index_2;
+            if (dual_indices_.empty())
+            {
+                delete final_index_1;
+                delete final_index_2;
+            }
+            else
+            {
+                for (auto *idx : dual_indices_)
+                    delete idx;
+            }
         }
 
         IndexBuilder *load(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *query_alpha_file, char *ground_file, Parameters &parameters, bool dual = false);
@@ -42,6 +71,8 @@ namespace stkq
         IndexBuilder *load_graph(TYPE type, char *graph_file);
 
         IndexBuilder *load_graph(TYPE type, char *graph_file_1, char *graph_file_2);
+
+        IndexBuilder *load_graph(TYPE type, std::vector<std::string> const &graph_files);
 
         IndexBuilder *refine(TYPE type, bool debug);
 
@@ -79,6 +110,7 @@ namespace stkq
         Index *final_index_;
         Index *final_index_1;
         Index *final_index_2;
+        std::vector<Index *> dual_indices_;
 
         std::chrono::high_resolution_clock::time_point s;
         std::chrono::high_resolution_clock::time_point e;

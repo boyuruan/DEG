@@ -1,6 +1,8 @@
 #include "builder.h"
 #include "set_para.h"
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 void HNSW(stkq::Parameters &parameters)
 {
@@ -250,14 +252,13 @@ void DEG(stkq::Parameters &parameters)
 
 int main(int argc, char **argv)
 {
-    // ./test/main baseline1 openimage 0.5 1 1 build
-    // ./test/main baseline2 openimage 0.5 1 1 build
-    // ./test/main deg openimage 0.5 1 1 build
+    // N=2:  ./main algorithm dataset alpha max_spatial max_emb exc_type
+    // N>2:  ./main algorithm dataset num_vectors max_d0,...,max_dN w0,...,wN exc_type
 
     if (argc != 7)
     {
-        std::cout << "./main algorithm dataset alpha maximum_spatial_distance maximum_emb_distance exc_type"
-                  << std::endl;
+        std::cout << "N=2:  ./main algorithm dataset alpha max_spatial max_emb exc_type\n"
+                  << "N>2:  ./main algorithm dataset num_vectors max_d0,...,max_dN w0,...,wN exc_type\n";
         exit(-1);
     }
 
@@ -270,25 +271,81 @@ int main(int argc, char **argv)
 
     std::string alg(argv[1]);
     std::string dataset(argv[2]);
-    std::string alpha(argv[3]);
-    std::string maximum_spatial_distance(argv[4]);
-    std::string maximum_emb_distance(argv[5]);
-    std::string exc_type(argv[6]);
 
-    parameters.set<float>("alpha", std::stof(alpha));
-    parameters.set<float>("max_spatial_distance", std::stof(maximum_spatial_distance));
-    parameters.set<float>("max_emb_distance", std::stof(maximum_emb_distance));
-    parameters.set<unsigned>("num_vectors", 2);
+    bool multi_vec_mode = (std::string(argv[4]).find(',') != std::string::npos);
 
-    std::cout << "algorithm: " << alg << std::endl;
-    std::cout << "dataset: " << dataset << std::endl;
-    std::cout << "alpha: " << alpha << std::endl;
-    std::cout << "max_emb_distance: " << maximum_emb_distance << std::endl;
-    std::cout << "max_spatial_distance: " << maximum_spatial_distance << std::endl;
-    std::string graph_file(alg + "_" + dataset + ".index");
-    parameters.set<std::string>("graph_file", index_path + graph_file);
-    parameters.set<std::string>("exc_type", exc_type);
-    set_para(alg, dataset, parameters);
+    if (multi_vec_mode)
+    {
+        unsigned num_vectors = static_cast<unsigned>(std::stoul(argv[3]));
+        std::string max_dists_csv(argv[4]);
+        std::string weights_csv(argv[5]);
+        std::string exc_type(argv[6]);
+
+        std::vector<float> max_distances;
+        {
+            std::istringstream ss(max_dists_csv);
+            std::string tok;
+            while (std::getline(ss, tok, ','))
+                max_distances.push_back(std::stof(tok));
+        }
+        if (max_distances.size() < num_vectors)
+        {
+            std::cout << "Expected " << num_vectors << " max_distances, got " << max_distances.size() << std::endl;
+            exit(-1);
+        }
+
+        std::vector<float> weights;
+        {
+            std::istringstream ss(weights_csv);
+            std::string tok;
+            while (std::getline(ss, tok, ','))
+                weights.push_back(std::stof(tok));
+        }
+        if (weights.size() < num_vectors)
+        {
+            std::cout << "Expected " << num_vectors << " weights, got " << weights.size() << std::endl;
+            exit(-1);
+        }
+
+        parameters.set<unsigned>("num_vectors", num_vectors);
+        parameters.set<float>("alpha", 0.5f);
+        parameters.set<float>("max_emb_distance", max_distances[0]);
+        parameters.set<float>("max_spatial_distance", max_distances.size() > 1 ? max_distances[1] : max_distances[0]);
+        parameters.set<std::string>("exc_type", exc_type);
+
+        std::cout << "algorithm: " << alg << std::endl;
+        std::cout << "dataset: " << dataset << std::endl;
+        std::cout << "num_vectors: " << num_vectors << std::endl;
+        std::cout << "max_distances: " << max_dists_csv << std::endl;
+        std::cout << "weights: " << weights_csv << std::endl;
+
+        std::string graph_file(alg + "_" + dataset + "_nv" + std::to_string(num_vectors) + ".index");
+        parameters.set<std::string>("graph_file", index_path + graph_file);
+        set_para(alg, dataset, parameters);
+    }
+    else
+    {
+        std::string alpha(argv[3]);
+        std::string maximum_spatial_distance(argv[4]);
+        std::string maximum_emb_distance(argv[5]);
+        std::string exc_type(argv[6]);
+
+        parameters.set<float>("alpha", std::stof(alpha));
+        parameters.set<float>("max_spatial_distance", std::stof(maximum_spatial_distance));
+        parameters.set<float>("max_emb_distance", std::stof(maximum_emb_distance));
+        parameters.set<unsigned>("num_vectors", 2);
+        parameters.set<std::string>("exc_type", exc_type);
+
+        std::cout << "algorithm: " << alg << std::endl;
+        std::cout << "dataset: " << dataset << std::endl;
+        std::cout << "alpha: " << alpha << std::endl;
+        std::cout << "max_emb_distance: " << maximum_emb_distance << std::endl;
+        std::cout << "max_spatial_distance: " << maximum_spatial_distance << std::endl;
+
+        std::string graph_file(alg + "_" + dataset + ".index");
+        parameters.set<std::string>("graph_file", index_path + graph_file);
+        set_para(alg, dataset, parameters);
+    }
 
     if (alg == "baseline1")
     {

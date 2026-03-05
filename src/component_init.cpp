@@ -4,13 +4,15 @@ namespace stkq
 {
     void ComponentInitRTree::InitInner()
     {
+        unsigned loc_dim = index->getBaseLocDim();
+        index->initRTree(static_cast<int>(loc_dim));
+        std::vector<double> coor(loc_dim);
         for (unsigned i = 0; i < index->getBaseLen(); i++)
         {
             std::cout << i << std::endl;
-            double coor[2];
-            coor[0] = *(index->getBaseLocData() + i * index->getBaseLocDim());
-            coor[1] = *(index->getBaseLocData() + i * index->getBaseLocDim() + 1);
-            index->get_R_Tree().treeInsert(coor, coor, i);
+            for (unsigned d = 0; d < loc_dim; ++d)
+                coor[d] = *(index->getBaseLocData() + i * loc_dim + d);
+            index->get_R_Tree().insertPoint(coor.data(), static_cast<int>(i));
         }
     }
 

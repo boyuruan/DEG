@@ -4,6 +4,7 @@
 #include <chrono>
 #include <fstream>
 #include <set>
+#include <unordered_set>
 
 namespace stkq
 {
@@ -39,7 +40,6 @@ namespace stkq
         }
         else
         {
-            // TODO: dual-index (baseline2/3) for num_vectors > 2 not implemented.
             unsigned num_vectors = 2;
             try
             {
@@ -48,11 +48,26 @@ namespace stkq
             catch (...)
             {
             }
-            if (num_vectors > 2)
+
+            if (num_vectors > 2 && !dual_indices_.empty())
             {
-                std::cout << "Dual-index build/search for num_vectors>2 is not implemented." << std::endl;
-                exit(-1);
+                for (size_t i = 0; i < dual_indices_.size(); ++i)
+                {
+                    auto *loader = new ComponentLoad(dual_indices_[i]);
+                    loader->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
+                    dual_indices_[i]->setBaseEmbData(dual_indices_[i]->getBaseVecData(static_cast<unsigned>(i)));
+                    dual_indices_[i]->setBaseEmbDim(dual_indices_[i]->getBaseVecDim(static_cast<unsigned>(i)));
+                    dual_indices_[i]->setQueryEmbData(dual_indices_[i]->getQueryVecData(static_cast<unsigned>(i)));
+                    dual_indices_[i]->setQueryEmbDim(dual_indices_[i]->getQueryVecDim(static_cast<unsigned>(i)));
+                    dual_indices_[i]->set_alpha(1.0f);
+                    delete loader;
+                }
+                std::cout << "Dual-index: loaded " << dual_indices_.size() << " indices for num_vectors=" << num_vectors << std::endl;
+                std::cout << "base data len : " << dual_indices_[0]->getBaseLen() << std::endl;
+                std::cout << "=====================" << std::endl;
+                return this;
             }
+
             auto *a = new ComponentLoad(final_index_1);
             a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
             final_index_1->set_alpha(0);
@@ -563,6 +578,7 @@ namespace stkq
         }
         else if (type == INDEX_RTREE_HNSW)
         {
+            final_index_1->initRTree(static_cast<int>(final_index_1->getBaseLocDim()));
             final_index_1->get_R_Tree().loadIndex(graph_file_1);
 
             unsigned enterpoint_id;
@@ -611,6 +627,58 @@ namespace stkq
 
         return this;
     }
+
+    IndexBuilder *IndexBuilder::load_graph(TYPE type, std::vector<std::string> const &graph_files)
+    {
+        if (type == INDEX_HNSW && !dual_indices_.empty())
+        {
+            for (size_t idx = 0; idx < dual_indices_.size() && idx < graph_files.size(); ++idx)
+            {
+                std::ifstream in(graph_files[idx], std::ios::binary);
+                if (!in.is_open())
+                {
+                    std::cerr << "Error opening graph file " << graph_files[idx] << std::endl;
+                    exit(-1);
+                }
+                unsigned enterpoint_id;
+                dual_indices_[idx]->nodes_.resize(dual_indices_[idx]->getBaseLen());
+                for (unsigned i = 0; i < dual_indices_[idx]->getBaseLen(); i++)
+                    dual_indices_[idx]->nodes_[i] = new HNSW::HnswNode(0, 0, 0, 0);
+
+                in.read((char *)&enterpoint_id, sizeof(unsigned));
+                for (unsigned i = 0; i < dual_indices_[idx]->getBaseLen(); i++)
+                {
+                    unsigned node_id, neighbor_size, maxlevel;
+                    in.read((char *)&node_id, sizeof(unsigned));
+                    in.read((char *)&maxlevel, sizeof(unsigned));
+                    in.read((char *)&neighbor_size, sizeof(unsigned));
+                    dual_indices_[idx]->nodes_[node_id]->SetLevel(maxlevel);
+                    for (unsigned j = 0; j <= maxlevel; ++j)
+                    {
+                        unsigned level_neighbor_size;
+                        in.read((char *)&level_neighbor_size, sizeof(unsigned));
+                        std::vector<HNSW::HnswNode *> tmp;
+                        for (unsigned k = 0; k < level_neighbor_size; ++k)
+                        {
+                            unsigned nid;
+                            in.read((char *)&nid, sizeof(unsigned));
+                            tmp.push_back(dual_indices_[idx]->nodes_[nid]);
+                        }
+                        dual_indices_[idx]->nodes_[node_id]->SetFriends(j, tmp);
+                    }
+                }
+                dual_indices_[idx]->enterpoint_ = dual_indices_[idx]->nodes_[enterpoint_id];
+                in.close();
+                std::cout << "Loaded graph " << graph_files[idx] << " for dual index " << idx << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "load_graph(vector<string>): unsupported type" << std::endl;
+        }
+        return this;
+    }
+
     /**
      * offline search
      * param entry_type
@@ -623,7 +691,113 @@ namespace stkq
 
         unsigned K = 10; // 在近邻搜索中要找到的最近邻的数量
 
-        if (route_type == DUAL_ROUTER_HNSW)
+        if (route_type == DUAL_ROUTER_HNSW && !dual_indices_.empty())
+        {
+            unsigned num_vec = static_cast<unsigned>(dual_indices_.size());
+            std::cout << "__ROUTER : DUAL_HNSW (N=" << num_vec << ")__" << std::endl;
+            std::vector<ComponentSearchEntry *> entries(num_vec);
+            std::vector<ComponentSearchRoute *> routes(num_vec);
+            for (unsigned vi = 0; vi < num_vec; ++vi)
+            {
+                entries[vi] = new ComponentSearchEntryNone(dual_indices_[vi]);
+                routes[vi] = new ComponentSearchRouteHNSW(dual_indices_[vi]);
+            }
+
+            unsigned L = 0;
+            for (unsigned t = 0; t < 20; t++)
+            {
+                L = L + K;
+                for (unsigned vi = 0; vi < num_vec; ++vi)
+                {
+                    dual_indices_[vi]->getParam().set<unsigned>("K_search", L);
+                    dual_indices_[vi]->getParam().set<unsigned>("L_search", L);
+                }
+                std::cout << "SEARCH_L : " << L << std::endl;
+
+                auto s1 = std::chrono::high_resolution_clock::now();
+
+                std::vector<std::vector<std::vector<unsigned>>> per_idx_res(num_vec);
+                for (unsigned vi = 0; vi < num_vec; ++vi)
+                {
+                    per_idx_res[vi].resize(dual_indices_[0]->getQueryLen());
+                    for (unsigned qi = 0; qi < dual_indices_[0]->getQueryLen(); qi++)
+                    {
+                        std::vector<Index::Neighbor> pool;
+                        entries[vi]->SearchEntryInner(qi, pool);
+                        routes[vi]->RouteInner(qi, pool, per_idx_res[vi][qi]);
+                    }
+                }
+
+                Index *ref = dual_indices_[0];
+                std::vector<std::vector<unsigned>> res;
+                for (unsigned qi = 0; qi < ref->getQueryLen(); qi++)
+                {
+                    std::priority_queue<Index::CloserFirst> result_queue;
+                    std::unordered_set<unsigned> seen;
+                    for (unsigned vi = 0; vi < num_vec; ++vi)
+                    {
+                        for (unsigned j = 0; j < per_idx_res[vi][qi].size(); j++)
+                        {
+                            unsigned cid = per_idx_res[vi][qi][j];
+                            if (!seen.insert(cid).second)
+                                continue;
+                            std::vector<float> dists(num_vec);
+                            for (unsigned d = 0; d < num_vec; ++d)
+                            {
+                                dists[d] = ref->getVecDist(d)->compare(
+                                    ref->getQueryVecData(d) + qi * ref->getQueryVecDim(d),
+                                    ref->getBaseVecData(d) + cid * ref->getBaseVecDim(d),
+                                    ref->getBaseVecDim(d));
+                            }
+                            float cd = stkq::combined_distance(ref, qi, dists);
+                            result_queue.emplace(ref->nodes_[cid], cd);
+                        }
+                    }
+                    std::vector<unsigned> tmp;
+                    while (!result_queue.empty() && tmp.size() < K)
+                    {
+                        tmp.push_back(result_queue.top().GetNode()->GetId());
+                        result_queue.pop();
+                    }
+                    res.push_back(tmp);
+                }
+
+                auto e1 = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> diff = e1 - s1;
+                std::cout << "search time: " << diff.count() / ref->getQueryLen() << "\n";
+
+                float recall = 0;
+                for (unsigned qi = 0; qi < ref->getQueryLen(); qi++)
+                {
+                    if (res[qi].empty())
+                        continue;
+                    float cnt = 0;
+                    for (unsigned j = 0; j < K; j++)
+                    {
+                        unsigned k = 0;
+                        for (; k < K && k < res[qi].size(); k++)
+                        {
+                            if (res[qi][k] == ref->getGroundData()[qi * ref->getGroundDim() + j])
+                                break;
+                        }
+                        if (k == K || k == res[qi].size())
+                            cnt++;
+                    }
+                    recall += (float)(K - cnt) / (float)K;
+                }
+                std::cout << K << " NN accuracy: " << recall / ref->getQueryLen() << std::endl;
+            }
+
+            for (unsigned vi = 0; vi < num_vec; ++vi)
+            {
+                delete entries[vi];
+                delete routes[vi];
+            }
+            e = std::chrono::high_resolution_clock::now();
+            std::cout << "__SEARCH FINISH__" << std::endl;
+            return this;
+        }
+        else if (route_type == DUAL_ROUTER_HNSW)
         {
             final_index_1->getParam().set<unsigned>("K_search", K);
             final_index_2->getParam().set<unsigned>("K_search", K);
@@ -829,10 +1003,11 @@ namespace stkq
                     for (unsigned i = 0; i < final_index_1->getQueryLen(); i++)
                     {
                         std::vector<Index::Neighbor> pool;
-                        Point q = std::make_pair(
-                            *(final_index_1->getQueryLocData() + i * final_index_1->getBaseLocDim()),
-                            *(final_index_1->getQueryLocData() + i * final_index_1->getBaseLocDim() + 1));
-                        rtree.query(q, L, final_index_1->getBaseLocData(), res_1[i]);
+                        unsigned loc_dim = final_index_1->getBaseLocDim();
+                        std::vector<double> q_coords(loc_dim);
+                        for (unsigned d = 0; d < loc_dim; ++d)
+                            q_coords[d] = *(final_index_1->getQueryLocData() + i * loc_dim + d);
+                        rtree.queryKNN(q_coords.data(), L, final_index_1->getBaseLocData(), loc_dim, res_1[i]);
                     }
 
                     auto s2 = std::chrono::high_resolution_clock::now();

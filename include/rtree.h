@@ -1668,51 +1668,49 @@ namespace stkq
     using ElemType = coordinate;
     using MyTree = RTree<DataType, ElemType, NumSpaceDims, double, RTREEMAXNODES>;
 
-    // Multi-vector: RTreeIndex uses first non-embedding (spatial) vector only; 2D. TODO: multiple spatial vectors / high-dim.
-    class RTreeIndex
+    class RTreeIndexBase
+    {
+    public:
+        virtual ~RTreeIndexBase() = default;
+        virtual void insertPoint(const double *coords, int data_id) = 0;
+        virtual void queryKNN(const double *q, int k, float *base_data, unsigned base_dim,
+                              std::vector<unsigned> &result) = 0;
+        virtual bool saveIndex(const char *filename) = 0;
+        virtual bool loadIndex(const char *filename) = 0;
+    };
+
+    class RTreeIndex : public RTreeIndexBase
     {
     public:
         RTreeIndex() {}
-        ~RTreeIndex() {}
+        ~RTreeIndex() override {}
 
         void treeInsert(const ElemType a_min[NumSpaceDims], const ElemType a_max[NumSpaceDims], const DataType &a_dataId)
         {
             rtree.Insert(a_min, a_max, a_dataId);
-        };
+        }
 
         void query(Point const q, int k, float *base_loc_data, std::vector<unsigned> &result);
 
-        bool saveIndex(const char *filename)
+        void insertPoint(const double *coords, int data_id) override
         {
-            if (rtree.Save(filename))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            rtree.Insert(coords, coords, data_id);
         }
 
-        bool loadIndex(const char *filename)
+        void queryKNN(const double *q, int k, float *base_data, unsigned /*base_dim*/,
+                      std::vector<unsigned> &result) override
         {
-            if (rtree.Load(filename))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            Point p = std::make_pair(q[0], q[1]);
+            query(p, k, base_data, result);
         }
+
+        bool saveIndex(const char *filename) override { return rtree.Save(filename); }
+        bool loadIndex(const char *filename) override { return rtree.Load(filename); }
 
     protected:
         double scoreMBR(MyTree::Branch *a_branch, Point const q);
-
         Point minSpaceDistPoint(MyTree::Branch const &a_branch, Point const &q) const;
-
         MyTree rtree;
-        // E_Distance *s_dist_;
     };
 
     struct entryIsGreater
@@ -1847,5 +1845,120 @@ namespace stkq
             return q.empty();
         }
     };
+
+    template <int DIMS>
+    class RTreeIndexND : public RTreeIndexBase
+    {
+        using TreeType = RTree<DataType, ElemType, DIMS, double, RTREEMAXNODES>;
+        TreeType rtree;
+
+        struct NodeEntry
+        {
+            typename TreeType::Node *node;
+            double score;
+            bool operator>(const NodeEntry &o) const { return score > o.score; }
+        };
+
+        double scoreMBR(typename TreeType::Branch *branch, const double *q)
+        {
+            double diff = 0;
+            for (int d = 0; d < DIMS; ++d)
+            {
+                double p = q[d];
+                double closest;
+                if (p < branch->m_rect.m_min[d])
+                    closest = branch->m_rect.m_min[d];
+                else if (p > branch->m_rect.m_max[d])
+                    closest = branch->m_rect.m_max[d];
+                else
+                    closest = p;
+                diff += (p - closest) * (p - closest);
+            }
+            return std::sqrt(diff);
+        }
+
+    public:
+        void insertPoint(const double *coords, int data_id) override
+        {
+            rtree.Insert(coords, coords, data_id);
+        }
+
+        void queryKNN(const double *q, int k, float *base_data, unsigned base_dim,
+                      std::vector<unsigned> &result) override
+        {
+            std::priority_queue<NodeEntry, std::vector<NodeEntry>, std::greater<NodeEntry>> node_queue;
+            TopKPriorityQueue topk_queue(k);
+            double lowerbound = 0;
+
+            auto *root = rtree.GetRoot();
+            for (int i = 0; i < root->m_count; ++i)
+                node_queue.push({root->m_branch[i].m_child, scoreMBR(&root->m_branch[i], q)});
+
+            while (!node_queue.empty())
+            {
+                auto entry = node_queue.top();
+                node_queue.pop();
+                double min_score = entry.score;
+
+                if (topk_queue.size() == static_cast<size_t>(k) && min_score > topk_queue.peek())
+                {
+                }
+                else if (entry.node->IsInternalNode())
+                {
+                    for (int i = 0; i < entry.node->m_count; ++i)
+                        node_queue.push({entry.node->m_branch[i].m_child,
+                                         scoreMBR(&entry.node->m_branch[i], q)});
+                }
+                else
+                {
+                    lowerbound = min_score;
+                    for (int i = 0; i < entry.node->m_count; ++i)
+                    {
+                        int docid = entry.node->m_branch[i].m_data;
+                        double score = 0;
+                        unsigned dim = std::min(static_cast<unsigned>(DIMS), base_dim);
+                        for (unsigned d = 0; d < dim; ++d)
+                        {
+                            double diff_d = static_cast<double>(*(base_data + docid * base_dim + d)) - q[d];
+                            score += diff_d * diff_d;
+                        }
+                        topk_queue.add_if_better(docid, std::sqrt(score));
+                    }
+                }
+                if (topk_queue.size() > 0 && lowerbound >= topk_queue.peek())
+                    break;
+            }
+            while (!topk_queue.isEmpty())
+                result.push_back(topk_queue.toppop().first);
+        }
+
+        bool saveIndex(const char *filename) override { return rtree.Save(filename); }
+        bool loadIndex(const char *filename) override { return rtree.Load(filename); }
+    };
+
+    inline RTreeIndexBase *makeRTreeIndex(int dims)
+    {
+        switch (dims)
+        {
+        case 2: return new RTreeIndexND<2>();
+        case 3: return new RTreeIndexND<3>();
+        case 4: return new RTreeIndexND<4>();
+        case 5: return new RTreeIndexND<5>();
+        case 6: return new RTreeIndexND<6>();
+        case 7: return new RTreeIndexND<7>();
+        case 8: return new RTreeIndexND<8>();
+        case 9: return new RTreeIndexND<9>();
+        case 10: return new RTreeIndexND<10>();
+        case 11: return new RTreeIndexND<11>();
+        case 12: return new RTreeIndexND<12>();
+        case 13: return new RTreeIndexND<13>();
+        case 14: return new RTreeIndexND<14>();
+        case 15: return new RTreeIndexND<15>();
+        case 16: return new RTreeIndexND<16>();
+        default:
+            std::cerr << "R-tree: unsupported dimension " << dims << ", using 2D" << std::endl;
+            return new RTreeIndexND<2>();
+        }
+    }
 }
 #endif

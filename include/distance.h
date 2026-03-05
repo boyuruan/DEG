@@ -112,15 +112,16 @@ namespace stkq
         float max_emb_dist = 0;
     };
 
-    // Multi-vector: S_Distance is 2D only (a[0], a[1]). Additional vector dimensions TODO.
     class S_Distance
     {
     public:
         template <typename T>
         T compare(const T *a, const T *b, unsigned length) const
         {
-            T spatial_distance = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]);
-            return std::sqrt(spatial_distance) / max_spatial_dist;
+            T sum = 0;
+            for (unsigned i = 0; i < length; ++i)
+                sum += (a[i] - b[i]) * (a[i] - b[i]);
+            return std::sqrt(sum) / max_spatial_dist;
         }
         S_Distance(float max_spatial_dist) : max_spatial_dist(max_spatial_dist) {}
 

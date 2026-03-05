@@ -119,7 +119,6 @@ namespace stkq
     void ComponentLoad::LoadInner(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *query_alpha_file, char *ground_file,
                                   Parameters &parameters)
     {
-        // Multi-vector: only N=2 load is implemented. N>2 would need base_paths/query_paths and query_weights (N per query). TODO.
         unsigned num_vectors = 2;
         try
         {
@@ -129,8 +128,71 @@ namespace stkq
         {
         }
         index->setNumVectors(num_vectors);
-        assert(num_vectors == 2 && "LoadInner: multi-vector (N>2) load not implemented");
-        // base_emb_data
+
+        if (num_vectors > 2)
+        {
+            unsigned base_len = 0;
+            for (unsigned i = 0; i < num_vectors; ++i)
+            {
+                std::string path = parameters.get<std::string>("base_vec_path_" + std::to_string(i));
+                float *data = nullptr;
+                unsigned n{}, dim{};
+                load_data<float>(path.c_str(), data, n, dim);
+                if (i == 0)
+                {
+                    base_len = n;
+                    index->setBaseLen(n);
+                }
+                assert(n == base_len && "base vector file count mismatch");
+                index->setBaseVecData(i, data);
+                index->setBaseVecDim(i, dim);
+            }
+            index->setBaseEmbData(index->getBaseVecData(0));
+            index->setBaseEmbDim(index->getBaseVecDim(0));
+            index->setBaseLocData(index->getBaseVecData(1));
+            index->setBaseLocDim(index->getBaseVecDim(1));
+
+            unsigned query_len = 0;
+            for (unsigned i = 0; i < num_vectors; ++i)
+            {
+                std::string path = parameters.get<std::string>("query_vec_path_" + std::to_string(i));
+                float *data = nullptr;
+                unsigned n{}, dim{};
+                load_data<float>(path.c_str(), data, n, dim);
+                if (i == 0)
+                {
+                    query_len = n;
+                    index->setQueryLen(n);
+                }
+                assert(n == query_len && "query vector file count mismatch");
+                index->setQueryVecData(i, data);
+                index->setQueryVecDim(i, dim);
+            }
+            index->setQueryEmbData(index->getQueryVecData(0));
+            index->setQueryEmbDim(index->getQueryVecDim(0));
+            index->setQueryLocData(index->getQueryVecData(1));
+            index->setQueryLocDim(index->getQueryVecDim(1));
+
+            std::string weights_path = parameters.get<std::string>("query_weights_path");
+            float *weights = nullptr;
+            unsigned wn{}, wdim{};
+            load_data<float>(weights_path.c_str(), weights, wn, wdim);
+            assert(wn == query_len && "query weights count mismatch");
+            assert(wdim == num_vectors && "query weights dim must equal num_vectors");
+            index->setQueryWeightsData(weights);
+            index->setQueryWeightData(weights);
+
+            unsigned *ground_data = nullptr;
+            unsigned ground_num{}, ground_dim{};
+            load_data<unsigned>(ground_file, ground_data, ground_num, ground_dim);
+            index->setGroundData(ground_data);
+            index->setGroundLen(ground_num);
+            index->setGroundDim(ground_dim);
+            assert(index->getGroundData() != nullptr && index->getGroundLen() != 0 && index->getGroundDim() != 0);
+            index->setParam(parameters);
+            return;
+        }
+
         float *data_emb = nullptr;
         unsigned n{};
         unsigned emb_dim{};
@@ -146,7 +208,6 @@ namespace stkq
         index->setBaseLocData(data_loc);
         index->setBaseLocDim(loc_dim);
         assert(index->getBaseLocData() != nullptr && loc_n == index->getBaseLen());
-        // query_emb_data
         float *query_emb = nullptr;
         unsigned query_num{};
         unsigned query_emb_dim{};

@@ -202,7 +202,7 @@ namespace stkq
         }
 
         res.resize(K);
-        int pos = 0;
+        unsigned int pos = 0;
         while (!tmp.empty() && pos < K)
         {
             auto *top_node = tmp.top().GetNode();
@@ -314,10 +314,10 @@ namespace stkq
     {
         const auto K = index->getParam().get<unsigned>("K_search");
         auto *visited_list = new Index::VisitedList(index->getBaseLen());
-        float alpha = index->get_alpha();
+        (void)index->get_alpha();
         visited_list->Reset();
-        unsigned visited_mark = visited_list->GetVisitMark();
-        unsigned int *visited = visited_list->GetVisited();
+        (void)visited_list->GetVisitMark();
+        (void)visited_list->GetVisited();
 
         std::priority_queue<Index::DEG_FurtherFirst> result;
         std::priority_queue<Index::DEG_CloserFirst> tmp;
@@ -336,7 +336,7 @@ namespace stkq
         }
 
         res.resize(K);
-        int pos = 0;
+        unsigned int pos = 0;
         while (!tmp.empty() && pos < K)
         {
             auto *top_node = tmp.top().GetNode();
@@ -491,7 +491,7 @@ namespace stkq
         }
 
         res.resize(K);
-        int pos = 0;
+        unsigned int pos = 0;
         while (!tmp.empty() && pos < K)
         {
             auto *top_node = tmp.top().GetNode();
@@ -609,7 +609,7 @@ namespace stkq
 
         bool m_first = false;
 
-        for (int i = 0; i < index->enterpoint_set.size(); i++)
+        for (size_t i = 0; i < index->enterpoint_set.size(); i++)
         {
             Index::DEGNode *cur_node = index->DEG_nodes_[index->enterpoint_set[i]];
 
@@ -667,7 +667,7 @@ namespace stkq
                 // }
                 const std::vector<std::pair<int8_t, int8_t>> &use_range = neighbor.active_range;
                 bool search_flag = false;
-                for (int i = 0; i < use_range.size(); i++)
+                for (size_t i = 0; i < use_range.size(); i++)
                 {
                     if (alpha * 100 >= use_range[i].first && alpha * 100 <= use_range[i].second)
                     {

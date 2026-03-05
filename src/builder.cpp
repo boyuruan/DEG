@@ -266,6 +266,7 @@ namespace stkq
     {
         int average_neighbor_size = 0;
         int l1_average_neighbor_size = 0;
+        (void)l1_average_neighbor_size;
         if (type == INDEX_BS4)
         {
             final_index_->baseline4_nodes_.resize(5);
@@ -412,6 +413,7 @@ namespace stkq
                 std::vector<Index::DEGSimpleNeighbor> neighbors;
                 neighbors.reserve(neighbor_size);
                 int max_layer = 0;
+                (void)max_layer;
                 for (unsigned k = 0; k < neighbor_size; k++)
                 {
                     unsigned neighbor_id;
@@ -455,6 +457,7 @@ namespace stkq
 
         int average_neighbor_size = 0;
         int l1_average_neighbor_size = 0;
+        (void)l1_average_neighbor_size;
 
         if (!in1.is_open())
         {
@@ -620,13 +623,19 @@ namespace stkq
             {
                 std::set<unsigned> visited;
                 unsigned sg = 1000;
+                (void)sg;
                 float acc_set = 0.99;
+                (void)acc_set;
                 bool flag = false;
+                (void)flag;
                 int L_sl = 1;
+                (void)L_sl;
                 unsigned L = 0;
                 unsigned k_plus = 0;
+                (void)k_plus;
                 visited.insert(L);
                 unsigned L_min = 0x7fffffff;
+                (void)L_min;
                 float alpha = param_.get<float>("alpha");
                 for (unsigned t = 0; t < 20; t++)
                 {
@@ -666,9 +675,9 @@ namespace stkq
                     std::priority_queue<Index::CloserFirst> result_queue;
                     std::vector<std::vector<unsigned>> res;
 
-                    for (int i = 0; i < res_1.size(); i++)
+                    for (size_t i = 0; i < res_1.size(); i++)
                     {
-                        for (int j = 0; j < res_1[i].size(); j++)
+                        for (size_t j = 0; j < res_1[i].size(); j++)
                         {
                             float e_d = final_index_1->get_E_Dist()->compare(final_index_1->getQueryEmbData() + i * final_index_1->getBaseEmbDim(),
                                                                              final_index_1->getBaseEmbData() + res_1[i][j] * final_index_1->getBaseEmbDim(),
@@ -683,7 +692,7 @@ namespace stkq
                             result_queue.emplace(final_index_1->nodes_[res_1[i][j]], d);
                         }
 
-                        for (int j = 0; j < res_2[i].size(); j++)
+                        for (size_t j = 0; j < res_2[i].size(); j++)
                         {
                             float e_d = final_index_1->get_E_Dist()->compare(final_index_1->getQueryEmbData() + i * final_index_1->getBaseEmbDim(),
                                                                              final_index_1->getBaseEmbData() + res_2[i][j] * final_index_1->getBaseEmbDim(),
@@ -765,13 +774,19 @@ namespace stkq
             {
                 std::set<unsigned> visited;
                 unsigned sg = 1000;
+                (void)sg;
                 float acc_set = 0.99;
+                (void)acc_set;
                 bool flag = false;
+                (void)flag;
                 int L_sl = 1;
+                (void)L_sl;
                 unsigned L = 0;
                 unsigned k_plus = 0;
+                (void)k_plus;
                 visited.insert(L);
                 unsigned L_min = 0x7fffffff;
+                (void)L_min;
                 float alpha = param_.get<float>("alpha");
                 auto &rtree = final_index_1->get_R_Tree();
 
@@ -806,7 +821,7 @@ namespace stkq
                     std::chrono::duration<double> total_duration = s2 - s1;
 
                     double throughput = final_index_1->getQueryLen() / total_duration.count();
-
+                    (void)throughput;
                     // std::cout << "Throughput of R-Tree: " << throughput << " queries/second\n";
 
                     res_2.clear();
@@ -821,7 +836,7 @@ namespace stkq
                     total_duration = s3 - s2;
 
                     throughput = final_index_1->getQueryLen() / total_duration.count();
-
+                    (void)throughput;
                     // std::cout << "Throughput of HNSW: " << throughput << " queries/second\n";
 
                     std::cout << "DistCount: " << final_index_2->getDistCount() << std::endl;
@@ -832,9 +847,9 @@ namespace stkq
                     std::priority_queue<Index::CloserFirst> result_queue;
                     std::vector<std::vector<unsigned>> res;
 
-                    for (int i = 0; i < res_1.size(); i++)
+                    for (size_t i = 0; i < res_1.size(); i++)
                     {
-                        for (int j = 0; j < res_1[i].size(); j++)
+                        for (size_t j = 0; j < res_1[i].size(); j++)
                         {
                             float e_d = final_index_1->get_E_Dist()->compare(final_index_1->getQueryEmbData() + i * final_index_1->getBaseEmbDim(),
                                                                              final_index_1->getBaseEmbData() + res_1[i][j] * final_index_1->getBaseEmbDim(),
@@ -849,7 +864,7 @@ namespace stkq
                             result_queue.emplace(final_index_2->nodes_[res_1[i][j]], d);
                         }
 
-                        for (int j = 0; j < res_2[i].size(); j++)
+                        for (size_t j = 0; j < res_2[i].size(); j++)
                         {
                             float e_d = final_index_2->get_E_Dist()->compare(final_index_2->getQueryEmbData() + i * final_index_2->getBaseEmbDim(),
                                                                              final_index_2->getBaseEmbData() + res_2[i][j] * final_index_2->getBaseEmbDim(),
@@ -974,12 +989,17 @@ namespace stkq
         {
             std::set<unsigned> visited;
             unsigned sg = 1000;
+            (void)sg;
             float acc_set = 0.9;
+            (void)acc_set;
             bool flag = false;
+            (void)flag;
             int L_sl = 1;
+            (void)L_sl;
             unsigned L = 0;
             visited.insert(L);
             unsigned L_min = 0x7fffffff;
+            (void)L_min;
             // while (true)
             // {
             for (unsigned t = 0; t < 20; t++)

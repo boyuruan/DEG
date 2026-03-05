@@ -297,8 +297,8 @@ namespace stkq
                     after_pruned_use_range.push_back(std::make_pair(0, prune_range[0].first));
                 }
             }
-            int iter;
-            for (iter = 0; iter < prune_range.size() - 1; iter++)
+            size_t iter;
+            for (iter = 0; iter + 1 < prune_range.size(); iter++)
             {
                 float gap = prune_range[iter + 1].first - prune_range[iter].second;
                 if (gap >= 0.01)
@@ -306,7 +306,7 @@ namespace stkq
                     after_pruned_use_range.push_back(std::make_pair(prune_range[iter].second, prune_range[iter + 1].first));
                 }
             }
-            if (prune_range[iter].second < 1)
+            if (iter < prune_range.size() && prune_range[iter].second < 1)
             {
                 float gap = 1 - prune_range[iter].second;
                 if (gap >= 0.01)
@@ -571,8 +571,8 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
                     after_pruned_use_range.push_back(std::make_pair(0, prune_range[0].first));
                 }
             }
-            int iter;
-            for (iter = 0; iter < prune_range.size() - 1; iter++)
+            size_t iter;
+            for (iter = 0; iter + 1 < prune_range.size(); iter++)
             {
                 float gap = prune_range[iter + 1].first - prune_range[iter].second;
                 if (gap >= 0.01)
@@ -580,7 +580,7 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
                     after_pruned_use_range.push_back(std::make_pair(prune_range[iter].second, prune_range[iter + 1].first));
                 }
             }
-            if (prune_range[iter].second < 1)
+            if (iter < prune_range.size() && prune_range[iter].second < 1)
             {
                 float gap = 1 - prune_range[iter].second;
                 if (gap >= 0.01)
@@ -656,7 +656,7 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
         {
             // 构造下凸包
             std::vector<Index::DEGNeighbor> hull;
-            for (int i = 0; i < points.size(); i++)
+            for (size_t i = 0; i < points.size(); i++)
             {
                 while (hull.size() >= 2 && (crossProduct(hull[hull.size() - 2], hull[hull.size() - 1], points[i]) <= 0))
                 {
@@ -666,7 +666,7 @@ void Hnsw2Neighbor(unsigned query, unsigned range, std::priority_queue<Index::BS
                 hull.push_back(points[i]);
             }
             L.push_back(hull[0]);
-            for (int i = 1; i < hull.size(); ++i)
+            for (size_t i = 1; i < hull.size(); ++i)
             {
                 float deltaY = hull[i].emb_distance_ - hull[i - 1].emb_distance_;
                 float deltaX = hull[i].geo_distance_ - hull[i - 1].geo_distance_;

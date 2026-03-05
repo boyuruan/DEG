@@ -17,9 +17,11 @@ namespace stkq
         while (!node_queue.isEmpty())
         {
             // 当node_queue非空时，从队列中取出得分最低（距离最近）的节点
-            auto const [node, min_score] = node_queue.toppop();
+            auto entry = node_queue.toppop();
+            MyTree::Node *node = entry.first;
+            double min_score = entry.second;
             // dequeue the best scored element
-            if ((topk_queue.size() == k) && (min_score > topk_queue.peek()))
+            if ((topk_queue.size() == static_cast<size_t>(k)) && (min_score > topk_queue.peek()))
             {
                 // 如果topk_queue已满（即已找到k个文档），并且当前节点的最小得分高于topk_queue中的最高得分，则可以剪枝
             }
@@ -27,7 +29,7 @@ namespace stkq
             {
                 // add all children to the queue
                 // 如果该节点是内部节点 遍历它的所有子节点 重复上述过程
-                for (int i = 0; i < node->m_count; ++i)
+                for (int i = 0; i < static_cast<int>(node->m_count); ++i)
                 {
                     node_queue.add_to_queue(node->m_branch[i].m_child, scoreMBR(&node->m_branch[i], q));
                 }
@@ -37,7 +39,7 @@ namespace stkq
                 // 如果是叶子节点 则计算其中每个文档与查询点q的距离，并更新topk_queue
                 lowerbound = min_score;
                 // 每当从叶子节点添加文档到topk_queue时，更新lowerbound为当前节点的最小得分
-                for (int i = 0; i < node->m_count; i++)
+                for (int i = 0; i < static_cast<int>(node->m_count); i++)
                 {
                     DocId const docid(node->m_branch[i].m_data);
                     // double score = distance(q, corp.docvec.at(docid), a, corp.max_space_distance, corp.max_semantic_distance);

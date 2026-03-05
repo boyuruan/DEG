@@ -137,7 +137,7 @@ namespace stkq
             result.pop();
         }
 
-        int pos = 0;
+        unsigned int pos = 0;
         while (!tmp.empty() && pos < index->NN_)
         {
             auto *top_node = tmp.top().GetNode();
@@ -1020,6 +1020,7 @@ namespace stkq
 
             float max_emb_dis = 0;
             float min_emb_dis = 1e9;
+            (void)min_emb_dis;
 
             std::vector<Index::DEGNNDescentNeighbor> skyline;
 
@@ -1036,7 +1037,7 @@ namespace stkq
 
             index->DEG_enterpoints.clear();
 
-            for (int i = 0; i < index->DEG_enterpoints_skyeline.size(); i++)
+            for (size_t i = 0; i < index->DEG_enterpoints_skyeline.size(); i++)
             {
                 index->DEG_enterpoints.push_back(index->DEG_nodes_[index->DEG_enterpoints_skyeline[i].id_]);
             }
@@ -1050,7 +1051,7 @@ namespace stkq
         ComponentDEGPruneHeuristic *a = new ComponentDEGPruneHeuristic(index);
         std::vector<Index::DEGNeighbor> result;
         a->DEG2Neighbor(qnode->GetId(), qnode->GetMaxM(), pool, result);
-        for (int j = 0; j < result.size(); j++)
+        for (size_t j = 0; j < result.size(); j++)
         {
             auto *neighbor = index->DEG_nodes_[result[j].id_];
             Link(neighbor, qnode, 0, result[j].emb_distance_, result[j].geo_distance_);
@@ -1071,7 +1072,7 @@ namespace stkq
 
         enterpoint_lock.lock();
 
-        for (int i = 0; i < index->DEG_enterpoints.size(); i++)
+        for (size_t i = 0; i < index->DEG_enterpoints.size(); i++)
         {
             auto &enterpoint = index->DEG_enterpoints[i];
 
@@ -1097,7 +1098,7 @@ namespace stkq
 
         queue.init_queue(pool);
 
-        int k = 0;
+        size_t k = 0;
         int l = 0;
 
         while (k < queue.pool.size())
@@ -1138,7 +1139,7 @@ namespace stkq
             }
             int nk = 0;
             queue.updateNeighbor(nk);
-            k = nk;
+            k = static_cast<size_t>(nk);
             if (k < queue.pool.size())
             {
                 l = queue.pool[k].layer_;

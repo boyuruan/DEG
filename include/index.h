@@ -301,8 +301,8 @@ namespace stkq
             inline std::vector<HnswNode *> &GetFriends(int level) { return friends_at_layer_[level]; }
             inline void SetFriends(int level, std::vector<HnswNode *> &new_friends)
             {
-                if (level >= friends_at_layer_.size())
-                    friends_at_layer_.resize(level + 1);
+                if (static_cast<size_t>(level) >= friends_at_layer_.size())
+                    friends_at_layer_.resize(static_cast<size_t>(level) + 1);
                 friends_at_layer_[level].swap(new_friends);
             }
 
@@ -435,8 +435,8 @@ namespace stkq
             inline std::vector<BS4Node *> &GetFriends(int level) { return friends_at_layer_[level]; }
             inline void SetFriends(int level, std::vector<BS4Node *> &new_friends)
             {
-                if (level >= friends_at_layer_.size())
-                    friends_at_layer_.resize(level + 1);
+                if (static_cast<size_t>(level) >= friends_at_layer_.size())
+                    friends_at_layer_.resize(static_cast<size_t>(level) + 1);
                 friends_at_layer_[level].swap(new_friends);
             }
 
@@ -538,7 +538,7 @@ namespace stkq
                 available_range.emplace_back(0, 1);
             }
             DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range) {}
-            DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), available_range(range), layer_(l) {}
+            DEGNeighbor(unsigned id, float emb_distance, float geo_distance, std::vector<std::pair<float, float>> range, unsigned l) : id_{id}, emb_distance_{emb_distance}, geo_distance_(geo_distance), layer_(l), available_range(range) {}
 
             inline bool operator<(const DEGNeighbor &other) const
             {
@@ -747,7 +747,7 @@ namespace stkq
                     return;
                 }
                 Visited_Set.insert(id);
-                for (int i = 0; i < outlier.size(); i++)
+                for (size_t i = 0; i < outlier.size(); i++)
                 {
                     if (outlier[i].emb_distance_ <= e_dist && outlier[i].geo_distance_ <= s_dist)
                     {

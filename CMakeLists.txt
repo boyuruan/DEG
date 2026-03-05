@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 # set cmake C and CXX compiler, only required for local Mac environment
 #set(CMAKE_C_COMPILER "/usr/local/bin/gcc-7")
 #set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-7")
@@ -6,6 +6,8 @@ project(STKQ)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Paths relative to project root (works from any build directory)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 #OpenMP

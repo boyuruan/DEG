@@ -15,7 +15,7 @@ namespace stkq
         // {
         // 如果候选邻居的数量超过了设定的范围 range 则需要进行剪枝
         // Index::MinHeap<float, Index::SimpleNeighbor> skipped;
-        for (int i = 0; i < pool.size(); i++)
+        for (size_t i = 0; i < pool.size(); i++)
         {
             bool skip = false;
             float cur_dist = pool[i].distance;
@@ -95,7 +95,7 @@ namespace stkq
         sort(pool.begin(), pool.end());
         queue.init_queue(pool);
         pool.swap(queue.pool);
-        int iter = 0;
+        size_t iter = 0;
         int visited_layer = 0;
         while (picked.size() < range && iter < pool.size())
         {
@@ -113,7 +113,7 @@ namespace stkq
                 iter++;
             }
             std::vector<Index::DEGNeighbor> tempres_picked;
-            for (int i = 0; i < candidate.size(); i++)
+            for (size_t i = 0; i < candidate.size(); i++)
             {
                 // 这里先初始化useful range 根据斜率算出来
                 std::vector<std::pair<float, float>> prune_range;
@@ -239,7 +239,7 @@ namespace stkq
                 get_use_range(prune_range, after_pruned_use_range);
                 float threshold = 0.1;
                 float use_size = 0;
-                for (int j = 0; j < after_pruned_use_range.size(); j++)
+                for (size_t j = 0; j < after_pruned_use_range.size(); j++)
                 {
                     use_size = use_size + after_pruned_use_range[j].second - after_pruned_use_range[j].first;
                 }

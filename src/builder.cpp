@@ -1,7 +1,8 @@
-
 #include "builder.h"
 #include "component.h"
 #include "rtree.h"
+#include <chrono>
+#include <fstream>
 #include <set>
 
 namespace stkq
@@ -38,6 +39,20 @@ namespace stkq
         }
         else
         {
+            // TODO: dual-index (baseline2/3) for num_vectors > 2 not implemented.
+            unsigned num_vectors = 2;
+            try
+            {
+                num_vectors = parameters.get<unsigned>("num_vectors");
+            }
+            catch (...)
+            {
+            }
+            if (num_vectors > 2)
+            {
+                std::cout << "Dual-index build/search for num_vectors>2 is not implemented." << std::endl;
+                exit(-1);
+            }
             auto *a = new ComponentLoad(final_index_1);
             a->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
             final_index_1->set_alpha(0);
@@ -637,6 +652,8 @@ namespace stkq
                 unsigned L_min = 0x7fffffff;
                 (void)L_min;
                 float alpha = param_.get<float>("alpha");
+                final_index_1->set_alpha(alpha);
+                final_index_2->set_alpha(alpha);
                 for (unsigned t = 0; t < 20; t++)
                 {
                     L = L + K;
@@ -687,7 +704,7 @@ namespace stkq
                                                                              final_index_1->getBaseLocData() + res_1[i][j] * final_index_1->getBaseLocDim(),
                                                                              final_index_1->getBaseLocDim());
 
-                            float d = alpha * e_d + (1 - alpha) * s_d;
+                            float d = stkq::combined_distance(final_index_1, e_d, s_d);
 
                             result_queue.emplace(final_index_1->nodes_[res_1[i][j]], d);
                         }
@@ -702,7 +719,7 @@ namespace stkq
                                                                              final_index_1->getBaseLocData() + res_2[i][j] * final_index_1->getBaseLocDim(),
                                                                              final_index_1->getBaseLocDim());
 
-                            float d = alpha * e_d + (1 - alpha) * s_d;
+                            float d = stkq::combined_distance(final_index_1, e_d, s_d);
 
                             result_queue.emplace(final_index_1->nodes_[res_2[i][j]], d);
                         }
@@ -788,6 +805,8 @@ namespace stkq
                 unsigned L_min = 0x7fffffff;
                 (void)L_min;
                 float alpha = param_.get<float>("alpha");
+                final_index_1->set_alpha(alpha);
+                final_index_2->set_alpha(alpha);
                 auto &rtree = final_index_1->get_R_Tree();
 
                 for (unsigned t = 0; t < 30; t++)
@@ -859,7 +878,7 @@ namespace stkq
                                                                              final_index_1->getBaseLocData() + res_1[i][j] * final_index_1->getBaseLocDim(),
                                                                              final_index_1->getBaseLocDim());
 
-                            float d = alpha * e_d + (1 - alpha) * s_d;
+                            float d = stkq::combined_distance(final_index_1, e_d, s_d);
 
                             result_queue.emplace(final_index_2->nodes_[res_1[i][j]], d);
                         }
@@ -874,7 +893,7 @@ namespace stkq
                                                                              final_index_2->getBaseLocData() + res_2[i][j] * final_index_2->getBaseLocDim(),
                                                                              final_index_2->getBaseLocDim());
 
-                            float d = alpha * e_d + (1 - alpha) * s_d;
+                            float d = stkq::combined_distance(final_index_2, e_d, s_d);
 
                             result_queue.emplace(final_index_2->nodes_[res_2[i][j]], d);
                         }

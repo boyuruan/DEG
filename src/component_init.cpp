@@ -1,5 +1,4 @@
 #include "component.h"
-#include <functional>
 
 namespace stkq
 {
@@ -50,7 +49,7 @@ namespace stkq
                                                          index->getBaseLocData() + (size_t)id * index->getBaseLocDim(),
                                                          index->getBaseLocDim());
 
-                float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                float dist = stkq::combined_distance(index, e_d, s_d);
 
                 index->getFinalGraph()[i].emplace_back(id, dist);
             }
@@ -160,7 +159,7 @@ namespace stkq
         float s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
                                                  index->getBaseLocData() + (size_t)enterpoint->GetId() * index->getBaseLocDim(),
                                                  index->getBaseLocDim());
-        float d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+        float d = stkq::combined_distance(index, e_d, s_d);
 
         result.emplace(enterpoint, d);
         candidates.emplace(enterpoint, d);
@@ -192,7 +191,7 @@ namespace stkq
                     s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
                                                        index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
                                                        index->getBaseLocDim());
-                    d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                    d = stkq::combined_distance(index, e_d, s_d);
 
                     if (result.size() < index->ef_construction_ || result.top().GetDistance() > d)
                     {
@@ -347,7 +346,7 @@ namespace stkq
                 s_d = 0;
             }
 
-            float d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float d = stkq::combined_distance(index, e_d, s_d);
 
             float cur_dist = d;
             for (auto i = max_level_copy; i > cur_level; --i)
@@ -383,7 +382,7 @@ namespace stkq
                             s_d = 0;
                         }
 
-                        d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                        d = stkq::combined_distance(index, e_d, s_d);
 
                         if (d < cur_dist)
                         {
@@ -456,7 +455,7 @@ namespace stkq
             s_d = 0;
         }
 
-        float d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+        float d = stkq::combined_distance(index, e_d, s_d);
 
         result.emplace(enterpoint, d);
         candidates.emplace(enterpoint, d);
@@ -499,7 +498,7 @@ namespace stkq
                     {
                         s_d = 0;
                     }
-                    d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                    d = stkq::combined_distance(index, e_d, s_d);
 
                     if (result.size() < index->ef_construction_ || result.top().GetDistance() > d)
                     {
@@ -551,7 +550,7 @@ namespace stkq
                 s_d = 0;
             }
 
-            float tmp = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float tmp = stkq::combined_distance(index, e_d, s_d);
             tempres.push(Index::BS4FurtherFirst(neighbor, tmp));
         }
 
@@ -674,7 +673,7 @@ namespace stkq
                 s_d = 0;
             }
 
-            float d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float d = stkq::combined_distance(index, e_d, s_d);
 
             float cur_dist = d;
             for (auto i = max_level_copy; i > cur_level; --i)
@@ -710,7 +709,7 @@ namespace stkq
                         {
                             s_d = 0;
                         }
-                        d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                        d = stkq::combined_distance(index, e_d, s_d);
 
                         if (d < cur_dist)
                         {
@@ -789,7 +788,7 @@ namespace stkq
             s_d = 0;
         }
 
-        float d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+        float d = stkq::combined_distance(index, e_d, s_d);
 
         result.emplace(enterpoint, d);
         candidates.emplace(enterpoint, d);
@@ -832,7 +831,7 @@ namespace stkq
                     {
                         s_d = 0;
                     }
-                    d = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                    d = stkq::combined_distance(index, e_d, s_d);
 
                     if (result.size() < index->ef_construction_ || result.top().GetDistance() > d)
                     {
@@ -883,7 +882,7 @@ namespace stkq
             {
                 s_d = 0;
             }
-            float tmp = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float tmp = stkq::combined_distance(index, e_d, s_d);
 
             tempres.push(Index::FurtherFirst(neighbor, tmp));
         }
@@ -903,6 +902,9 @@ namespace stkq
 
     void ComponentInitDEG::InitInner()
     {
+        // TODO: multi-vector (N>2) not implemented; DEG skyline/convex-hull assume two objectives.
+        if (index->getNumVectors() != 2)
+            return;
         SetConfigs();
         BuildByIncrementInsert();
         std::cout << "index is built over" << std::endl;

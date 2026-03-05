@@ -10,6 +10,7 @@ namespace stkq
     {
     public:
         explicit IndexBuilder(const unsigned num_threads, const float max_emb_dist, const float max_spatial_dist, bool dual_index = false)
+            : final_index_(nullptr), final_index_1(nullptr), final_index_2(nullptr)
         {
             if (dual_index == false)
             {

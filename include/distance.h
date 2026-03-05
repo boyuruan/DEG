@@ -1,6 +1,8 @@
 #ifndef STKQ_DISTANCE_H
 #define STKQ_DISTANCE_H
+#include <cstdint>
 #include <immintrin.h>
+#include <cmath>
 #define PORTABLE_ALIGN32 __attribute__((aligned(32)))
 #define PORTABLE_ALIGN64 __attribute__((aligned(64)))
 
@@ -110,6 +112,7 @@ namespace stkq
         float max_emb_dist = 0;
     };
 
+    // Multi-vector: S_Distance is 2D only (a[0], a[1]). Additional vector dimensions TODO.
     class S_Distance
     {
     public:

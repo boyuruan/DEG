@@ -1,8 +1,23 @@
 #include "parameters.h"
-#include <string.h>
+#include <cmath>
 #include <iostream>
 
-void HNSW_PARA(std::string dataset, stkq::Parameters &parameters)
+namespace
+{
+    inline unsigned get_num_vectors(stkq::Parameters const &parameters)
+    {
+        try
+        {
+            return parameters.get<unsigned>("num_vectors");
+        }
+        catch (...)
+        {
+            return 2;
+        }
+    }
+}
+
+inline void HNSW_PARA(std::string dataset, stkq::Parameters &parameters)
 {
     unsigned max_m, max_m0, ef_construction;
     if (dataset == "openimage")
@@ -36,7 +51,7 @@ void HNSW_PARA(std::string dataset, stkq::Parameters &parameters)
     parameters.set<unsigned>("ef_construction", ef_construction);
 }
 
-void BS4_PARA(std::string dataset, stkq::Parameters &parameters)
+inline void BS4_PARA(std::string dataset, stkq::Parameters &parameters)
 {
     unsigned max_m, max_m0, ef_construction;
     if (dataset == "openimage")
@@ -70,7 +85,7 @@ void BS4_PARA(std::string dataset, stkq::Parameters &parameters)
     parameters.set<unsigned>("ef_construction", ef_construction);
 }
 
-void DEG_PARA(std::string dataset, stkq::Parameters &parameters)
+inline void DEG_PARA(std::string dataset, stkq::Parameters &parameters)
 {
     unsigned max_m, ef_construction;
     if (dataset == "openimage")
@@ -103,8 +118,15 @@ void DEG_PARA(std::string dataset, stkq::Parameters &parameters)
     parameters.set<int>("mult", -1);
 }
 
-void set_data_path(std::string dataset, stkq::Parameters &parameters)
+inline void set_data_path(std::string dataset, stkq::Parameters &parameters)
 {
+    // Multi-vector: num_vectors hyperparameter (default 2). Path logic for N>2 is TODO.
+    unsigned num_vectors = get_num_vectors(parameters);
+    if (num_vectors > 2)
+    {
+        std::cout << "Multi-vector (N>2) path logic not implemented; num_vectors=" << num_vectors << std::endl;
+        exit(-1);
+    }
     // dataset root path
     std::string dataset_root = parameters.get<std::string>("dataset_root");
     std::string base_emb_path(dataset_root);
@@ -213,7 +235,7 @@ void set_data_path(std::string dataset, stkq::Parameters &parameters)
     parameters.set<std::string>("ground_path", ground_path);
 }
 
-void set_para(std::string alg, std::string dataset, stkq::Parameters &parameters)
+inline void set_para(std::string alg, std::string dataset, stkq::Parameters &parameters)
 {
     set_data_path(dataset, parameters);
     if (parameters.get<std::string>("exc_type") != "build")

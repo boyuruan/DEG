@@ -1,7 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <vector>
 #include <cassert>
 #include "component.h"
 
@@ -121,6 +119,17 @@ namespace stkq
     void ComponentLoad::LoadInner(char *data_emb_file, char *data_loc_file, char *query_emb_file, char *query_loc_file, char *query_alpha_file, char *ground_file,
                                   Parameters &parameters)
     {
+        // Multi-vector: only N=2 load is implemented. N>2 would need base_paths/query_paths and query_weights (N per query). TODO.
+        unsigned num_vectors = 2;
+        try
+        {
+            num_vectors = parameters.get<unsigned>("num_vectors");
+        }
+        catch (...)
+        {
+        }
+        index->setNumVectors(num_vectors);
+        assert(num_vectors == 2 && "LoadInner: multi-vector (N>2) load not implemented");
         // base_emb_data
         float *data_emb = nullptr;
         unsigned n{};

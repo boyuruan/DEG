@@ -1,4 +1,5 @@
 #include "component.h"
+#include <stack>
 
 namespace stkq
 {
@@ -121,7 +122,7 @@ namespace stkq
                                                  index->getBaseLocData() + (size_t)id * index->getBaseLocDim(),
                                                  index->getBaseLocDim());
 
-        float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+        float dist = stkq::combined_distance(index, e_d, s_d);
 
         index->getFinalGraph()[root].push_back(Index::SimpleNeighbor(id, dist));
     }
@@ -171,7 +172,7 @@ namespace stkq
                                                      index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
                                                      index->getBaseLocDim());
 
-            float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float dist = stkq::combined_distance(index, e_d, s_d);
 
             retset[i] = Index::Neighbor(id, dist, true);
             // flags[id] = 1;
@@ -207,7 +208,7 @@ namespace stkq
                                                              index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
                                                              index->getBaseLocDim());
 
-                    float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                    float dist = stkq::combined_distance(index, e_d, s_d);
 
                     Index::Neighbor nn(id, dist, true);
                     fullset.push_back(nn);

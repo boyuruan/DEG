@@ -42,7 +42,7 @@ namespace stkq
                                                      index->getBaseLocData() + (size_t)query * index->getBaseLocDim(),
                                                      index->getBaseLocDim());
 
-            float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+            float dist = stkq::combined_distance(index, e_d, s_d);
 
             index->addDistCount();
             pool[i] = Index::Neighbor(id, dist, true);

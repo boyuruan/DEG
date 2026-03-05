@@ -30,7 +30,7 @@ namespace stkq
                                                          index->getBaseLocData() + (size_t)pool[i].id * index->getBaseLocDim(),
                                                          index->getBaseLocDim());
 
-                float dist = index->get_alpha() * e_d + (1 - index->get_alpha()) * s_d;
+                float dist = stkq::combined_distance(index, e_d, s_d);
 
                 if (dist < cur_dist)
                 {
@@ -89,6 +89,9 @@ namespace stkq
     void ComponentDEGPruneHeuristic::PruneInner(std::vector<Index::DEGNNDescentNeighbor> &pool, unsigned int range,
                                                      std::vector<Index::DEGNeighbor> &cut_graph_)
     {
+        // TODO: multi-vector (N>2) not implemented; DEG prune uses 2D alpha intervals.
+        if (index->getNumVectors() != 2)
+            return;
         std::vector<Index::DEGNeighbor> picked;
         // pool 按照layer排序 在同层内按照geo_distance排序
         Index::skyline_queue queue;

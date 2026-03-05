@@ -1,5 +1,5 @@
-#include <builder.h>
-#include <set_para.h>
+#include "builder.h"
+#include "set_para.h"
 #include <iostream>
 
 void HNSW(stkq::Parameters &parameters)
@@ -278,6 +278,7 @@ int main(int argc, char **argv)
     parameters.set<float>("alpha", std::stof(alpha));
     parameters.set<float>("max_spatial_distance", std::stof(maximum_spatial_distance));
     parameters.set<float>("max_emb_distance", std::stof(maximum_emb_distance));
+    parameters.set<unsigned>("num_vectors", 2);
 
     std::cout << "algorithm: " << alg << std::endl;
     std::cout << "dataset: " << dataset << std::endl;

@@ -4,9 +4,12 @@
 #include <math.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <cstdint>
 #include <algorithm>
 #include <functional>
-#include <index.h>
+#include <iostream>
+#include <queue>
+#include <vector>
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -29,6 +32,7 @@ namespace stkq
 
     using coordinate = double;
     int const RTREEMAXNODES = 4096;
+    // Multi-vector: R-tree remains 2D (NumSpaceDims=2). TODO: support multiple spatial dimensions / high-dim R-tree.
     int const NumSpaceDims = 2;
     // The following two are used to avoid resizing vectors
     int const DEFAULTDIM = 768;
@@ -1664,6 +1668,7 @@ namespace stkq
     using ElemType = coordinate;
     using MyTree = RTree<DataType, ElemType, NumSpaceDims, double, RTREEMAXNODES>;
 
+    // Multi-vector: RTreeIndex uses first non-embedding (spatial) vector only; 2D. TODO: multiple spatial vectors / high-dim.
     class RTreeIndex
     {
     public:

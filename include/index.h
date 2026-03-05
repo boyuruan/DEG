@@ -3,20 +3,11 @@
 
 #include <omp.h>
 #include <mutex>
-#include <queue>
-#include <stack>
-#include <thread>
 #include <vector>
-#include <chrono>
 #include <cstring>
 #include <cfloat>
-#include <fstream>
 #include <cassert>
-#include <iostream>
 #include <algorithm>
-#include <set>
-#include <functional>
-#include <map>
 #include <unordered_set>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/shared_ptr.hpp>
@@ -26,7 +17,6 @@
 #include "parameters.h"
 #include "policy.h"
 #include "rtree.h"
-#include "CommonDataStructure.h"
 #include <mm_malloc.h>
 #include <stdlib.h>
 #define INF_N -std::numeric_limits<float>::max()
@@ -1068,18 +1058,29 @@ namespace stkq
     class Index : public NNDescent, public NSW, public HNSW, public SSG, public NSG, public DEG, public baseline4
     {
     public:
-        explicit Index(float max_emb_dist, float max_spatial_dist)
+        explicit Index(float max_emb_dist, float max_spatial_dist) : num_vectors_(2)
         {
             e_dist_ = new E_Distance(max_emb_dist);
             s_dist_ = new E_Distance(max_spatial_dist);
-            // max_emb_dist_ = max_emb_dist;
-            // max_spatial_dist_ = max_spatial_dist;
+        }
+
+        // Multi-vector: constructor for N>2 (max_distances.size() >= 2). First two use e_dist_/s_dist_.
+        explicit Index(unsigned num_vectors, std::vector<float> const &max_distances) : num_vectors_(num_vectors)
+        {
+            if (max_distances.size() < num_vectors_)
+                num_vectors_ = static_cast<unsigned>(max_distances.size());
+            e_dist_ = new E_Distance(max_distances[0]);
+            s_dist_ = new E_Distance(max_distances.size() > 1 ? max_distances[1] : max_distances[0]);
+            for (unsigned i = 2; i < num_vectors_; ++i)
+                vec_dists_.push_back(new E_Distance(max_distances[i]));
         }
 
         ~Index()
         {
             delete e_dist_;
             delete s_dist_;
+            for (auto *d : vec_dists_)
+                delete d;
         }
 
         struct SimpleNeighbor
@@ -1178,6 +1179,52 @@ namespace stkq
             return right;
         }
 
+        unsigned getNumVectors() const { return num_vectors_; }
+        void setNumVectors(unsigned n)
+        {
+            num_vectors_ = n;
+            if (n > 2)
+            {
+                base_vecs_.resize(n, nullptr);
+                query_vecs_.resize(n, nullptr);
+                base_dims_.resize(n, 0);
+                query_dims_.resize(n, 0);
+            }
+        }
+
+        float *getBaseVecData(unsigned i) const
+        {
+            if (num_vectors_ == 2)
+                return i == 0 ? base_emb_data_ : base_loc_data_;
+            return i < base_vecs_.size() ? base_vecs_[i] : nullptr;
+        }
+        unsigned getBaseVecDim(unsigned i) const
+        {
+            if (num_vectors_ == 2)
+                return i == 0 ? base_emb_dim_ : base_loc_dim_;
+            return i < base_dims_.size() ? base_dims_[i] : 0;
+        }
+        float *getQueryVecData(unsigned i) const
+        {
+            if (num_vectors_ == 2)
+                return i == 0 ? query_emb_data_ : query_loc_data_;
+            return i < query_vecs_.size() ? query_vecs_[i] : nullptr;
+        }
+        unsigned getQueryVecDim(unsigned i) const
+        {
+            if (num_vectors_ == 2)
+                return i == 0 ? query_emb_dim_ : query_loc_dim_;
+            return i < query_dims_.size() ? query_dims_[i] : 0;
+        }
+        float getQueryWeight(unsigned query_id, unsigned vector_id) const
+        {
+            if (num_vectors_ == 2)
+                return vector_id == 0 ? query_alpha_[query_id] : (1.0f - query_alpha_[query_id]);
+            if (query_weights_ && vector_id < num_vectors_)
+                return query_weights_[query_id * num_vectors_ + vector_id];
+            return 0.0f;
+        }
+
         float *getBaseEmbData() const
         {
             return base_emb_data_;
@@ -1187,6 +1234,32 @@ namespace stkq
         {
             base_emb_data_ = baseEmbData;
         }
+
+        void setBaseVecData(unsigned i, float *p)
+        {
+            if (num_vectors_ > 2 && i < base_vecs_.size())
+                base_vecs_[i] = p;
+        }
+        void setBaseVecDim(unsigned i, unsigned dim)
+        {
+            if (num_vectors_ > 2 && i < base_dims_.size())
+                base_dims_[i] = dim;
+        }
+        void setQueryVecData(unsigned i, float *p)
+        {
+            if (num_vectors_ > 2 && i < query_vecs_.size())
+                query_vecs_[i] = p;
+        }
+        void setQueryVecDim(unsigned i, unsigned dim)
+        {
+            if (num_vectors_ > 2 && i < query_dims_.size())
+                query_dims_[i] = dim;
+        }
+        void setQueryWeightsData(float *p)
+        {
+            query_weights_ = p;
+        }
+        float *getQueryWeightsData() const { return query_weights_; }
 
         float *getBaseLocData() const
         {
@@ -1397,6 +1470,16 @@ namespace stkq
         {
             return s_dist_;
         }
+        E_Distance *getVecDist(unsigned i) const
+        {
+            if (i == 0)
+                return e_dist_;
+            if (i == 1)
+                return s_dist_;
+            if (i - 2 < vec_dists_.size())
+                return vec_dists_[i - 2];
+            return nullptr;
+        }
 
         FinalGraph &getFinalGraph()
         {
@@ -1497,11 +1580,19 @@ namespace stkq
         bool debug = false;
 
     private:
+        unsigned num_vectors_ = 2;
         float *base_emb_data_, *base_loc_data_, *query_emb_data_, *query_loc_data_, *query_alpha_;
+        float *query_weights_ = nullptr;
         unsigned *ground_data_;
 
         unsigned base_len_, query_len_, ground_len_;
         unsigned base_emb_dim_, base_loc_dim_, query_emb_dim_, query_loc_dim_, ground_dim_;
+
+        std::vector<float *> base_vecs_;
+        std::vector<float *> query_vecs_;
+        std::vector<unsigned> base_dims_;
+        std::vector<unsigned> query_dims_;
+        std::vector<E_Distance *> vec_dists_;
 
         Parameters param_;
         unsigned init_edges_num;       // S
@@ -1525,10 +1616,35 @@ namespace stkq
 
         unsigned dist_count = 0;
         unsigned hop_count = 0;
-
-        float alpha_;
-        float max_emb_dist_, max_spatial_dist_;
     };
+
+    // Multi-vector: combined distance helper. N=2 uses get_alpha() (current query weight); N>2 uses weighted sum.
+    inline float combined_distance(Index const *idx, unsigned query_id, std::vector<float> const &dists)
+    {
+        float sum = 0.0f;
+        for (size_t i = 0; i < dists.size() && i < idx->getNumVectors(); ++i)
+            sum += idx->getQueryWeight(query_id, static_cast<unsigned>(i)) * dists[i];
+        return sum;
+    }
+    inline float combined_distance(Index const *idx, float e_d, float s_d)
+    {
+        if (idx->getNumVectors() == 2)
+        {
+            float a = idx->get_alpha();
+            return a * e_d + (1.0f - a) * s_d;
+        }
+        return 0.0f;
+    }
+    inline float combined_distance(Index const *idx, unsigned query_id, float e_d, float s_d)
+    {
+        if (idx->getNumVectors() == 2)
+        {
+            float a = idx->getQueryWeight(query_id, 0);
+            return a * e_d + (1.0f - a) * s_d;
+        }
+        std::vector<float> d = {e_d, s_d};
+        return combined_distance(idx, query_id, d);
+    }
 }
 
 #endif

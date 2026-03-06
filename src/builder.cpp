@@ -49,21 +49,21 @@ namespace stkq
             {
             }
 
-            if (num_vectors > 2 && !dual_indices_.empty())
+            if (num_vectors > 2 && !nway_indices_.empty())
             {
-                for (size_t i = 0; i < dual_indices_.size(); ++i)
+                for (size_t i = 0; i < nway_indices_.size(); ++i)
                 {
-                    auto *loader = new ComponentLoad(dual_indices_[i]);
+                    auto *loader = new ComponentLoad(nway_indices_[i]);
                     loader->LoadInner(data_emb_file, data_loc_file, query_emb_file, query_loc_file, query_alpha_file, ground_file, parameters);
-                    dual_indices_[i]->setBaseEmbData(dual_indices_[i]->getBaseVecData(static_cast<unsigned>(i)));
-                    dual_indices_[i]->setBaseEmbDim(dual_indices_[i]->getBaseVecDim(static_cast<unsigned>(i)));
-                    dual_indices_[i]->setQueryEmbData(dual_indices_[i]->getQueryVecData(static_cast<unsigned>(i)));
-                    dual_indices_[i]->setQueryEmbDim(dual_indices_[i]->getQueryVecDim(static_cast<unsigned>(i)));
-                    dual_indices_[i]->set_alpha(1.0f);
+                    nway_indices_[i]->setBaseEmbData(nway_indices_[i]->getBaseVecData(static_cast<unsigned>(i)));
+                    nway_indices_[i]->setBaseEmbDim(nway_indices_[i]->getBaseVecDim(static_cast<unsigned>(i)));
+                    nway_indices_[i]->setQueryEmbData(nway_indices_[i]->getQueryVecData(static_cast<unsigned>(i)));
+                    nway_indices_[i]->setQueryEmbDim(nway_indices_[i]->getQueryVecDim(static_cast<unsigned>(i)));
+                    nway_indices_[i]->set_alpha(1.0f);
                     delete loader;
                 }
-                std::cout << "Dual-index: loaded " << dual_indices_.size() << " indices for num_vectors=" << num_vectors << std::endl;
-                std::cout << "base data len : " << dual_indices_[0]->getBaseLen() << std::endl;
+                std::cout << "Dual-index: loaded " << nway_indices_.size() << " indices for num_vectors=" << num_vectors << std::endl;
+                std::cout << "base data len : " << nway_indices_[0]->getBaseLen() << std::endl;
                 std::cout << "=====================" << std::endl;
                 return this;
             }
@@ -630,9 +630,9 @@ namespace stkq
 
     IndexBuilder *IndexBuilder::load_graph(TYPE type, std::vector<std::string> const &graph_files)
     {
-        if (type == INDEX_HNSW && !dual_indices_.empty())
+        if (type == INDEX_HNSW && !nway_indices_.empty())
         {
-            for (size_t idx = 0; idx < dual_indices_.size() && idx < graph_files.size(); ++idx)
+            for (size_t idx = 0; idx < nway_indices_.size() && idx < graph_files.size(); ++idx)
             {
                 std::ifstream in(graph_files[idx], std::ios::binary);
                 if (!in.is_open())
@@ -641,18 +641,18 @@ namespace stkq
                     exit(-1);
                 }
                 unsigned enterpoint_id;
-                dual_indices_[idx]->nodes_.resize(dual_indices_[idx]->getBaseLen());
-                for (unsigned i = 0; i < dual_indices_[idx]->getBaseLen(); i++)
-                    dual_indices_[idx]->nodes_[i] = new HNSW::HnswNode(0, 0, 0, 0);
+                nway_indices_[idx]->nodes_.resize(nway_indices_[idx]->getBaseLen());
+                for (unsigned i = 0; i < nway_indices_[idx]->getBaseLen(); i++)
+                    nway_indices_[idx]->nodes_[i] = new HNSW::HnswNode(0, 0, 0, 0);
 
                 in.read((char *)&enterpoint_id, sizeof(unsigned));
-                for (unsigned i = 0; i < dual_indices_[idx]->getBaseLen(); i++)
+                for (unsigned i = 0; i < nway_indices_[idx]->getBaseLen(); i++)
                 {
                     unsigned node_id, neighbor_size, maxlevel;
                     in.read((char *)&node_id, sizeof(unsigned));
                     in.read((char *)&maxlevel, sizeof(unsigned));
                     in.read((char *)&neighbor_size, sizeof(unsigned));
-                    dual_indices_[idx]->nodes_[node_id]->SetLevel(maxlevel);
+                    nway_indices_[idx]->nodes_[node_id]->SetLevel(maxlevel);
                     for (unsigned j = 0; j <= maxlevel; ++j)
                     {
                         unsigned level_neighbor_size;
@@ -662,12 +662,12 @@ namespace stkq
                         {
                             unsigned nid;
                             in.read((char *)&nid, sizeof(unsigned));
-                            tmp.push_back(dual_indices_[idx]->nodes_[nid]);
+                            tmp.push_back(nway_indices_[idx]->nodes_[nid]);
                         }
-                        dual_indices_[idx]->nodes_[node_id]->SetFriends(j, tmp);
+                        nway_indices_[idx]->nodes_[node_id]->SetFriends(j, tmp);
                     }
                 }
-                dual_indices_[idx]->enterpoint_ = dual_indices_[idx]->nodes_[enterpoint_id];
+                nway_indices_[idx]->enterpoint_ = nway_indices_[idx]->nodes_[enterpoint_id];
                 in.close();
                 std::cout << "Loaded graph " << graph_files[idx] << " for dual index " << idx << std::endl;
             }
@@ -691,16 +691,16 @@ namespace stkq
 
         unsigned K = 10; // 在近邻搜索中要找到的最近邻的数量
 
-        if (route_type == DUAL_ROUTER_HNSW && !dual_indices_.empty())
+        if (route_type == NWAY_ROUTER_HNSW && !nway_indices_.empty())
         {
-            unsigned num_vec = static_cast<unsigned>(dual_indices_.size());
+            unsigned num_vec = static_cast<unsigned>(nway_indices_.size());
             std::cout << "__ROUTER : DUAL_HNSW (N=" << num_vec << ")__" << std::endl;
             std::vector<ComponentSearchEntry *> entries(num_vec);
             std::vector<ComponentSearchRoute *> routes(num_vec);
             for (unsigned vi = 0; vi < num_vec; ++vi)
             {
-                entries[vi] = new ComponentSearchEntryNone(dual_indices_[vi]);
-                routes[vi] = new ComponentSearchRouteHNSW(dual_indices_[vi]);
+                entries[vi] = new ComponentSearchEntryNone(nway_indices_[vi]);
+                routes[vi] = new ComponentSearchRouteHNSW(nway_indices_[vi]);
             }
 
             unsigned L = 0;
@@ -709,8 +709,8 @@ namespace stkq
                 L = L + K;
                 for (unsigned vi = 0; vi < num_vec; ++vi)
                 {
-                    dual_indices_[vi]->getParam().set<unsigned>("K_search", L);
-                    dual_indices_[vi]->getParam().set<unsigned>("L_search", L);
+                    nway_indices_[vi]->getParam().set<unsigned>("K_search", L);
+                    nway_indices_[vi]->getParam().set<unsigned>("L_search", L);
                 }
                 std::cout << "SEARCH_L : " << L << std::endl;
 
@@ -719,8 +719,8 @@ namespace stkq
                 std::vector<std::vector<std::vector<unsigned>>> per_idx_res(num_vec);
                 for (unsigned vi = 0; vi < num_vec; ++vi)
                 {
-                    per_idx_res[vi].resize(dual_indices_[0]->getQueryLen());
-                    for (unsigned qi = 0; qi < dual_indices_[0]->getQueryLen(); qi++)
+                    per_idx_res[vi].resize(nway_indices_[0]->getQueryLen());
+                    for (unsigned qi = 0; qi < nway_indices_[0]->getQueryLen(); qi++)
                     {
                         std::vector<Index::Neighbor> pool;
                         entries[vi]->SearchEntryInner(qi, pool);
@@ -728,7 +728,7 @@ namespace stkq
                     }
                 }
 
-                Index *ref = dual_indices_[0];
+                Index *ref = nway_indices_[0];
                 std::vector<std::vector<unsigned>> res;
                 for (unsigned qi = 0; qi < ref->getQueryLen(); qi++)
                 {
@@ -797,7 +797,7 @@ namespace stkq
             std::cout << "__SEARCH FINISH__" << std::endl;
             return this;
         }
-        else if (route_type == DUAL_ROUTER_HNSW)
+        else if (route_type == NWAY_ROUTER_HNSW)
         {
             final_index_1->getParam().set<unsigned>("K_search", K);
             final_index_2->getParam().set<unsigned>("K_search", K);
@@ -1215,9 +1215,9 @@ namespace stkq
                 res.resize(final_index_->getQueryLen());
                 //  #pragma omp parallel for
                 for (unsigned i = 0; i < final_index_->getQueryLen(); i++)
-                //                for (unsigned i = 0; i < 1000; i++)
                 {
-                    final_index_->set_alpha(final_index_->getQueryWeightData()[i]);
+                    if (final_index_->getNumVectors() <= 2)
+                        final_index_->set_alpha(final_index_->getQueryWeightData()[i]);
                     std::vector<Index::Neighbor> pool;
                     a->SearchEntryInner(i, pool);
                     b->RouteInner(i, pool, res[i]);

@@ -650,32 +650,30 @@ namespace stkq
         if (cur_level < max_level_copy)
         {
             Index::HnswNode *cur_node = enterpoint;
+            bool nv_mode = index->getNumVectors() > 2;
 
-            float e_d, s_d;
-            if (index->get_alpha() != 0)
+            float d;
+            if (nv_mode)
             {
-                e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
-                                                   index->getBaseEmbData() + (size_t)cur_node->GetId() * index->getBaseEmbDim(),
-                                                   index->getBaseEmbDim());
+                d = stkq::base_combined_distance_nv(index, qnode->GetId(), cur_node->GetId());
             }
             else
             {
-                e_d = 0;
+                float e_d, s_d;
+                if (index->get_alpha() != 0)
+                    e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
+                                                       index->getBaseEmbData() + (size_t)cur_node->GetId() * index->getBaseEmbDim(),
+                                                       index->getBaseEmbDim());
+                else
+                    e_d = 0;
+                if (index->get_alpha() != 1)
+                    s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
+                                                       index->getBaseLocData() + (size_t)cur_node->GetId() * index->getBaseLocDim(),
+                                                       index->getBaseLocDim());
+                else
+                    s_d = 0;
+                d = stkq::combined_distance(index, e_d, s_d);
             }
-
-            if (index->get_alpha() != 1)
-            {
-
-                s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
-                                                   index->getBaseLocData() + (size_t)cur_node->GetId() * index->getBaseLocDim(),
-                                                   index->getBaseLocDim());
-            }
-            else
-            {
-                s_d = 0;
-            }
-
-            float d = stkq::combined_distance(index, e_d, s_d);
 
             float cur_dist = d;
             for (auto i = max_level_copy; i > cur_level; --i)
@@ -689,29 +687,27 @@ namespace stkq
 
                     for (auto iter = neighbors.begin(); iter != neighbors.end(); ++iter)
                     {
-                        if (index->get_alpha() != 0)
+                        if (nv_mode)
                         {
-                            e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
-                                                               index->getBaseEmbData() + (size_t)(*iter)->GetId() * index->getBaseEmbDim(),
-                                                               index->getBaseEmbDim());
+                            d = stkq::base_combined_distance_nv(index, qnode->GetId(), (*iter)->GetId());
                         }
                         else
                         {
-                            e_d = 0;
+                            float e_d, s_d;
+                            if (index->get_alpha() != 0)
+                                e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
+                                                                   index->getBaseEmbData() + (size_t)(*iter)->GetId() * index->getBaseEmbDim(),
+                                                                   index->getBaseEmbDim());
+                            else
+                                e_d = 0;
+                            if (index->get_alpha() != 1)
+                                s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
+                                                                   index->getBaseLocData() + (size_t)(*iter)->GetId() * index->getBaseLocDim(),
+                                                                   index->getBaseLocDim());
+                            else
+                                s_d = 0;
+                            d = stkq::combined_distance(index, e_d, s_d);
                         }
-
-                        if (index->get_alpha() != 1)
-                        {
-
-                            s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
-                                                               index->getBaseLocData() + (size_t)(*iter)->GetId() * index->getBaseLocDim(),
-                                                               index->getBaseLocDim());
-                        }
-                        else
-                        {
-                            s_d = 0;
-                        }
-                        d = stkq::combined_distance(index, e_d, s_d);
 
                         if (d < cur_dist)
                         {
@@ -765,32 +761,26 @@ namespace stkq
     {
         // TODO: check Node 12bytes => 8bytes
         std::priority_queue<Index::CloserFirst> candidates;
-        float e_d, s_d;
+        bool nv_mode = index->getNumVectors() > 2;
 
-        if (index->get_alpha() != 0)
+        float d;
+        if (nv_mode)
         {
-            e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
-                                               index->getBaseEmbData() + (size_t)enterpoint->GetId() * index->getBaseEmbDim(),
-                                               index->getBaseEmbDim());
+            d = stkq::base_combined_distance_nv(index, qnode->GetId(), enterpoint->GetId());
         }
         else
         {
-            e_d = 0;
+            float e_d = 0, s_d = 0;
+            if (index->get_alpha() != 0)
+                e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
+                                                   index->getBaseEmbData() + (size_t)enterpoint->GetId() * index->getBaseEmbDim(),
+                                                   index->getBaseEmbDim());
+            if (index->get_alpha() != 1)
+                s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
+                                                   index->getBaseLocData() + (size_t)enterpoint->GetId() * index->getBaseLocDim(),
+                                                   index->getBaseLocDim());
+            d = stkq::combined_distance(index, e_d, s_d);
         }
-
-        if (index->get_alpha() != 1)
-        {
-
-            s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
-                                               index->getBaseLocData() + (size_t)enterpoint->GetId() * index->getBaseLocDim(),
-                                               index->getBaseLocDim());
-        }
-        else
-        {
-            s_d = 0;
-        }
-
-        float d = stkq::combined_distance(index, e_d, s_d);
 
         result.emplace(enterpoint, d);
         candidates.emplace(enterpoint, d);
@@ -813,27 +803,23 @@ namespace stkq
                 if (visited_list->NotVisited(id))
                 {
                     visited_list->MarkAsVisited(id);
-                    if (index->get_alpha() != 0)
+                    if (nv_mode)
                     {
-                        e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
-                                                           index->getBaseEmbData() + (size_t)neighbor->GetId() * index->getBaseEmbDim(),
-                                                           index->getBaseEmbDim());
+                        d = stkq::base_combined_distance_nv(index, qnode->GetId(), neighbor->GetId());
                     }
                     else
                     {
-                        e_d = 0;
+                        float e_d = 0, s_d = 0;
+                        if (index->get_alpha() != 0)
+                            e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)qnode->GetId() * index->getBaseEmbDim(),
+                                                               index->getBaseEmbData() + (size_t)neighbor->GetId() * index->getBaseEmbDim(),
+                                                               index->getBaseEmbDim());
+                        if (index->get_alpha() != 1)
+                            s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
+                                                               index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
+                                                               index->getBaseLocDim());
+                        d = stkq::combined_distance(index, e_d, s_d);
                     }
-                    if (index->get_alpha() != 1)
-                    {
-                        s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)qnode->GetId() * index->getBaseLocDim(),
-                                                           index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
-                                                           index->getBaseLocDim());
-                    }
-                    else
-                    {
-                        s_d = 0;
-                    }
-                    d = stkq::combined_distance(index, e_d, s_d);
 
                     if (result.size() < index->ef_construction_ || result.top().GetDistance() > d)
                     {
@@ -859,33 +845,28 @@ namespace stkq
             return;
 
         std::priority_queue<Index::FurtherFirst> tempres;
+        bool nv_mode = index->getNumVectors() > 2;
 
-        float e_d, s_d;
         for (const auto &neighbor : neighbors)
         {
-            if (index->get_alpha() != 0)
+            float tmp;
+            if (nv_mode)
             {
-                e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)source->GetId() * index->getBaseEmbDim(),
-                                                   index->getBaseEmbData() + (size_t)neighbor->GetId() * index->getBaseEmbDim(),
-                                                   index->getBaseEmbDim());
+                tmp = stkq::base_combined_distance_nv(index, source->GetId(), neighbor->GetId());
             }
             else
             {
-                e_d = 0;
+                float e_d = 0, s_d = 0;
+                if (index->get_alpha() != 0)
+                    e_d = index->get_E_Dist()->compare(index->getBaseEmbData() + (size_t)source->GetId() * index->getBaseEmbDim(),
+                                                       index->getBaseEmbData() + (size_t)neighbor->GetId() * index->getBaseEmbDim(),
+                                                       index->getBaseEmbDim());
+                if (index->get_alpha() != 1)
+                    s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)source->GetId() * index->getBaseLocDim(),
+                                                       index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
+                                                       index->getBaseLocDim());
+                tmp = stkq::combined_distance(index, e_d, s_d);
             }
-
-            if (index->get_alpha() != 1)
-            {
-                s_d = index->get_S_Dist()->compare(index->getBaseLocData() + (size_t)source->GetId() * index->getBaseLocDim(),
-                                                   index->getBaseLocData() + (size_t)neighbor->GetId() * index->getBaseLocDim(),
-                                                   index->getBaseLocDim());
-            }
-            else
-            {
-                s_d = 0;
-            }
-            float tmp = stkq::combined_distance(index, e_d, s_d);
-
             tempres.push(Index::FurtherFirst(neighbor, tmp));
         }
 

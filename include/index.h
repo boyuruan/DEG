@@ -1262,6 +1262,10 @@ namespace stkq
         }
         float *getQueryWeightsData() const { return query_weights_; }
 
+        void setBuildWeights(const std::vector<float> &w) { build_weights_ = w; }
+        float getBuildWeight(unsigned i) const { return i < build_weights_.size() ? build_weights_[i] : 0.0f; }
+        const std::vector<float> &getBuildWeights() const { return build_weights_; }
+
         float *getBaseLocData() const
         {
             return base_loc_data_;
@@ -1597,6 +1601,7 @@ namespace stkq
         std::vector<unsigned> base_dims_;
         std::vector<unsigned> query_dims_;
         std::vector<E_Distance *> vec_dists_;
+        std::vector<float> build_weights_;
 
         Parameters param_;
         unsigned init_edges_num;       // S
@@ -1648,6 +1653,34 @@ namespace stkq
         }
         std::vector<float> d = {e_d, s_d};
         return combined_distance(idx, query_id, d);
+    }
+
+    inline float base_combined_distance_nv(Index const *idx, unsigned id_a, unsigned id_b)
+    {
+        float sum = 0.0f;
+        for (unsigned v = 0; v < idx->getNumVectors(); ++v)
+        {
+            float d = idx->getVecDist(v)->compare(
+                idx->getBaseVecData(v) + (size_t)id_a * idx->getBaseVecDim(v),
+                idx->getBaseVecData(v) + (size_t)id_b * idx->getBaseVecDim(v),
+                idx->getBaseVecDim(v));
+            sum += idx->getBuildWeight(v) * d;
+        }
+        return sum;
+    }
+
+    inline float query_combined_distance_nv(Index const *idx, unsigned query_id, unsigned base_id)
+    {
+        float sum = 0.0f;
+        for (unsigned v = 0; v < idx->getNumVectors(); ++v)
+        {
+            float d = idx->getVecDist(v)->compare(
+                idx->getQueryVecData(v) + (size_t)query_id * idx->getQueryVecDim(v),
+                idx->getBaseVecData(v) + (size_t)base_id * idx->getBaseVecDim(v),
+                idx->getBaseVecDim(v));
+            sum += idx->getQueryWeight(query_id, v) * d;
+        }
+        return sum;
     }
 }
 

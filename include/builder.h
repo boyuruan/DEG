@@ -36,9 +36,9 @@ namespace stkq
             if (dual_index && num_vectors > 2)
             {
                 for (unsigned i = 0; i < num_vectors; ++i)
-                    dual_indices_.push_back(new Index(num_vectors, max_distances));
-                final_index_1 = dual_indices_[0];
-                final_index_2 = dual_indices_.size() > 1 ? dual_indices_[1] : nullptr;
+                    nway_indices_.push_back(new Index(num_vectors, max_distances));
+                final_index_1 = nway_indices_[0];
+                final_index_2 = nway_indices_.size() > 1 ? nway_indices_[1] : nullptr;
             }
             else if (dual_index)
             {
@@ -50,14 +50,14 @@ namespace stkq
         virtual ~IndexBuilder()
         {
             delete final_index_;
-            if (dual_indices_.empty())
+            if (nway_indices_.empty())
             {
                 delete final_index_1;
                 delete final_index_2;
             }
             else
             {
-                for (auto *idx : dual_indices_)
+                for (auto *idx : nway_indices_)
                     delete idx;
             }
         }
@@ -106,11 +106,13 @@ namespace stkq
 
         void peak_memory_footprint();
 
+        Index *getIndex() { return final_index_; }
+
     private:
         Index *final_index_;
         Index *final_index_1;
         Index *final_index_2;
-        std::vector<Index *> dual_indices_;
+        std::vector<Index *> nway_indices_;
 
         std::chrono::high_resolution_clock::time_point s;
         std::chrono::high_resolution_clock::time_point e;

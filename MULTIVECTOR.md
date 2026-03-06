@@ -56,7 +56,7 @@ The DEG project supports **multiple vectors** (N >= 2) controlled by a hyperpara
 ## Dual-index baselines
 
 - **N = 2**: Unchanged. Two indices with alpha=0 and alpha=1 (`final_index_1`, `final_index_2`).
-- **N > 2**: N dual indices (`dual_indices_`), each built with emb data pointing to one vector (alpha=1). At search time, all N indices are queried, results merged and re-ranked with `combined_distance(ref, query_id, dists)` using per-query weights.
+- **N > 2**: N dual indices (`nway_indices_`), each built with emb data pointing to one vector (alpha=1). At search time, all N indices are queried, results merged and re-ranked with `combined_distance(ref, query_id, dists)` using per-query weights.
 - `IndexBuilder` has a multi-vector constructor: `IndexBuilder(num_threads, num_vectors, max_distances, dual_index)`.
 - `load_graph(TYPE, std::vector<std::string>)` overload for loading N graph files.
 
@@ -90,7 +90,7 @@ The DEG project supports **multiple vectors** (N >= 2) controlled by a hyperpara
 | `include/index.h` | `num_vectors_`, `base_vecs_`/`query_vecs_`/`base_dims_`/`query_dims_`, `query_weights_`, `vec_dists_`; getters/setters; `Index(num_vectors, max_distances)`; `combined_distance()` helpers; `RTreeIndexBase *rtree_index_`; `initRTree(dims)`. |
 | `include/distance.h` | `S_Distance::compare` generalized to loop over `length` (no longer 2D only). |
 | `include/rtree.h` | `RTreeIndexBase` abstract class; `RTreeIndex` (2D, inherits base); `RTreeIndexND<DIMS>` template (2--16); `makeRTreeIndex(dims)` factory. |
-| `include/builder.h` | Multi-vector constructor `IndexBuilder(n_threads, num_vectors, max_distances, dual)`; `dual_indices_` vector; `load_graph` overload for N files. |
+| `include/builder.h` | Multi-vector constructor `IndexBuilder(n_threads, num_vectors, max_distances, dual)`; `nway_indices_` vector; `load_graph` overload for N files. |
 | `src/component_load.cpp` | N > 2 branch: loads N base/query vector files + query weights from numbered parameter keys. |
 | `src/builder.cpp` | Dual load for N > 2: creates N indices with per-vector emb override. Dual search for N > 2: searches all N indices, merges with combined_distance. N-file `load_graph` overload. |
 | `src/component_conn.cpp` | Replace inline formula with `combined_distance(index, e_d, s_d)`. |
